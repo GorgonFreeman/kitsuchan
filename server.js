@@ -1,7 +1,56 @@
 import '@shopify/shopify-api/adapters/node';
+import { existsSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { dirname, extname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { shopifyApi, ApiVersion, Session } from '@shopify/shopify-api';
 import { Redis } from '@upstash/redis';
-import { createServer } from 'node:http';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const distDir = resolve(__dirname, 'dist');
+
+const mimeByExt = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+};
+
+function polarisShellHtml() {
+  const indexPath = resolve(distDir, 'index.html');
+  if (!existsSync(indexPath)) return null;
+  let raw = readFileSync(indexPath, 'utf8');
+  raw = raw.replace(
+    '</title>',
+    `</title>\n    <meta name="shopify-api-key" content="${ process.env.SHOPIFY_API_KEY }" />\n    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`,
+  );
+  return raw;
+}
+
+function serveDistAsset(res, pathname) {
+  const relativePath = pathname.replace(/^\/+/, '');
+  if (!relativePath.startsWith('assets/')) return false;
+
+  const filePath = resolve(distDir, relativePath);
+  const assetsRoot = resolve(distDir, 'assets');
+  if (!filePath.startsWith(assetsRoot)) {
+    res.writeHead(403);
+    res.end();
+    return true;
+  }
+  if (!existsSync(filePath)) return false;
+
+  const ext = extname(filePath);
+  const type = mimeByExt[ ext ] ?? 'application/octet-stream';
+  res.writeHead(200, { 'Content-Type': type });
+  res.end(readFileSync(filePath));
+  return true;
+}
 
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -46,20 +95,11 @@ async function saveSession(session) {
   memorySessions.set(session.shop, session);
 }
 
-const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset='utf-8'>
-  <meta name='shopify-api-key' content='${ process.env.SHOPIFY_API_KEY }'>
-  <script src='https://cdn.shopify.com/shopifycloud/app-bridge.js'></script>
-  <title>minishopi</title>
-</head>
-<body>It's minishopi c:</body>
-</html>`;
-
 createServer(async (req, res) => {
   const url = new URL(req.url, `https://${ req.headers.host }`);
   const shop = url.searchParams.get('shop');
+
+  if (serveDistAsset(res, url.pathname)) return;
 
   if (url.pathname === '/auth/callback') {
     const { session } = await shopify.auth.callback({ rawRequest: req, rawResponse: res });
@@ -83,9 +123,16 @@ createServer(async (req, res) => {
     return;
   }
 
+  const shell = polarisShellHtml();
+  if (!shell) {
+    res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Run npm run build to generate the Polaris UI.');
+    return;
+  }
+
   res.writeHead(200, {
-    'Content-Type': 'text/html',
+    'Content-Type': 'text/html; charset=utf-8',
     'Content-Security-Policy': `frame-ancestors https://${ shop } https://admin.shopify.com`,
   });
-  res.end(html);
+  res.end(shell);
 }).listen(process.env.PORT);
