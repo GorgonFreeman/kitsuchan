@@ -5,9 +5,9 @@
 name = 'minishopi'
 handle = 'minishopi'
 
-client_id = 'REPLACE_WITH_SHOPIFY_API_KEY_FROM_PARTNERS'
+client_id = '9714f468916471a3d6d6cb7b4fa0e777'
 
-application_url = 'https://your-tunnel.trycloudflare.com/'
+application_url = 'https://frost-earthquake-similar-spyware.trycloudflare.com/'
 embedded = true
 
 [build]
@@ -19,7 +19,7 @@ scopes = 'read_products,write_products'
 
 [auth]
 redirect_urls = [
-  'https://your-tunnel.trycloudflare.com/auth/callback',
+  'https://frost-earthquake-similar-spyware.trycloudflare.com/auth/callback',
 ]
 
 [pos]
