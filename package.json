@@ -12,7 +12,7 @@
     "start": "node --env-file=.env server.js",
     "dev": "vite build && concurrently -k \"npm run build:watch\" \"npm start\"",
     "shopify:dev": "node scripts/shopify-dev.mjs",
-    "dev:full": "vite build && concurrently -k \"npm run build:watch\" \"npm start\" \"npm run shopify:dev\"",
+    "dev:full": "node scripts/dev-tabs.mjs",
     "tunnel": "cloudflared tunnel --url http://localhost:3121",
     "shopify:build": "npx --yes @shopify/cli@latest app build"
   },
@@ -28,6 +28,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.1",
+    "ttab": "^0.9.0",
     "vite": "^6.3.5"
   }
 }

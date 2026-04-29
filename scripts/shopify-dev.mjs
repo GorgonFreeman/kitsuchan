@@ -1,6 +1,9 @@
 /**
- * Runs `shopify app dev` with `--tunnel-url` from HOST in `.env` so the CLI
- * uses your existing cloudflared tunnel (same origin as embedded app OAuth).
+ * Runs `shopify app dev` with `--tunnel-url` from HOST in `.env`.
+ *
+ * Do not run this under `concurrently` with other tools: the Shopify CLI needs
+ * a normal TTY for login and prompts. Run `npm run shopify:dev` in its own
+ * terminal alongside `npm run dev` (and `npm run tunnel` when you use cloudflared).
  */
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
