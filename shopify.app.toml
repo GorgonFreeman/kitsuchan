@@ -7,7 +7,7 @@ handle = 'minishopi'
 
 client_id = '9714f468916471a3d6d6cb7b4fa0e777'
 
-application_url = 'https://strengths-delivery-manufactured-variable.trycloudflare.com/'
+application_url = 'https://blake-ecological-civilian-band.trycloudflare.com/'
 embedded = true
 
 [build]
@@ -19,7 +19,7 @@ scopes = 'read_products,write_products'
 
 [auth]
 redirect_urls = [
-  'https://strengths-delivery-manufactured-variable.trycloudflare.com/auth/callback',
+  'https://blake-ecological-civilian-band.trycloudflare.com/auth/callback',
 ]
 
 [pos]
@@ -31,4 +31,5 @@ api_version = '2026-04'
 [[webhooks.subscriptions]]
 topics = ['app/uninstalled']
 uri = '/webhooks/app/uninstalled'
+
 
