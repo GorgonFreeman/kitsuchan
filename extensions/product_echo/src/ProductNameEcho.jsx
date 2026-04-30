@@ -63,7 +63,7 @@ export default async () => {
 
     return (
       <s-admin-action heading={ i18n.translate('name') }>
-        <s-button slot="primaryAction" onClick={ close }>
+        <s-button slot="primaryAction" onClick={ () => { close(); } }>
           { i18n.translate('done') }
         </s-button>
         <s-box padding-block-start="base">
