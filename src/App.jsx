@@ -1,6 +1,4 @@
 import { NavMenu } from '@shopify/app-bridge-react';
-import { AppProvider, Box, Text } from '@shopify/polaris';
-import polarisEn from '@shopify/polaris/locales/en.json';
 import {
   Navigate,
   Outlet,
@@ -54,11 +52,6 @@ function Shell() {
           </a>
         )) }
       </NavMenu>
-      <Box paddingBlockEnd="400">
-        <Text variant="headingMd" as="span">
-          kitsuchan
-        </Text>
-      </Box>
       <Outlet />
     </>
   );
@@ -68,16 +61,14 @@ export default function App() {
   const entries = slugEntries();
 
   return (
-    <AppProvider i18n={ polarisEn }>
-      <Routes>
-        <Route path="/" element={ <HomeRedirect /> } />
-        <Route element={ <Shell /> }>
-          { entries.map(({ slug, Component }) => (
-            <Route key={ slug } path={ `/pages/${ slug }` } element={ <Component /> } />
-          )) }
-          <Route path="*" element={ <HomeRedirect /> } />
-        </Route>
-      </Routes>
-    </AppProvider>
+    <Routes>
+      <Route path="/" element={ <HomeRedirect /> } />
+      <Route element={ <Shell /> }>
+        { entries.map(({ slug, Component }) => (
+          <Route key={ slug } path={ `/pages/${ slug }` } element={ <Component /> } />
+        )) }
+        <Route path="*" element={ <HomeRedirect /> } />
+      </Route>
+    </Routes>
   );
 }

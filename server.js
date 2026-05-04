@@ -44,7 +44,7 @@ function polarisShellHtml() {
   const indexPath = resolve(distDir, 'index.html');
   if (!existsSync(indexPath)) return null;
   const raw = readFileSync(indexPath, 'utf8');
-  const tags = `<meta name="shopify-api-key" content="${ process.env.SHOPIFY_API_KEY }" />\n    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`;
+  const tags = `<meta name="shopify-api-key" content="${ process.env.SHOPIFY_API_KEY }" />\n    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>\n    <script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>`;
   return raw.replace(appBridgeMarker, tags);
 }
 

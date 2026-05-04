@@ -1,13 +1,3 @@
-import {
-  BlockStack,
-  Box,
-  Button,
-  Card,
-  InlineStack,
-  Page,
-  Spinner,
-  Text,
-} from '@shopify/polaris';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -92,112 +82,104 @@ export default function ShopMetafieldsPage() {
     [ rows ],
   );
 
+  const showLoading = loading && sorted.length === 0;
+  const showError = error && sorted.length === 0;
+  const showEmpty = !showLoading && !showError && sorted.length === 0 && shop;
+
   return (
-    <Page title="Shop metafields">
-      <Card>
+    <s-page heading="Shop metafields">
+      <s-section padding={ sorted.length > 0 ? 'none' : 'base' }>
         { !shop ? (
-          <Box padding="400">
-            <Text as="p">Open this app from the Shopify admin (needs <code>shop</code> in the URL).</Text>
-          </Box>
-        ) : loading && sorted.length === 0 ? (
-          <Box padding="400">
-            <InlineStack gap="200" blockAlign="center">
-              <Spinner size="small" />
-              <Text as="span">Loading…</Text>
-            </InlineStack>
-          </Box>
-        ) : error && sorted.length === 0 ? (
-          <Box padding="400">
-            <Text as="p" tone="critical">
-              { error }
-            </Text>
-          </Box>
-        ) : sorted.length === 0 ? (
-          <Box padding="400">
-            <Text as="p" tone="subdued">
-              No shop metafields.
-            </Text>
-          </Box>
-        ) : (
-          <BlockStack gap="0">
+          <s-paragraph>
+            Open this app from the Shopify admin (needs <code>shop</code> in the URL).
+          </s-paragraph>
+        ) : null }
+
+        { showLoading ? (
+          <s-stack direction="inline" gap="small" align-items="center">
+            <s-spinner accessibility-label="Loading metafields" size="base" />
+            <s-text>Loading…</s-text>
+          </s-stack>
+        ) : null }
+
+        { showError ? (
+          <s-paragraph tone="critical">{ error }</s-paragraph>
+        ) : null }
+
+        { showEmpty ? (
+          <s-paragraph color="subdued">No shop metafields.</s-paragraph>
+        ) : null }
+
+        { sorted.length > 0 ? (
+          <s-stack direction="block" gap="none">
             { sorted.map((m) => (
-              <Box
+              <s-clickable
                 key={ m.id }
-                padding="300"
-                paddingInline="400"
-                borderBlockEndWidth="025"
-                borderColor="border"
+                onClick={ () => setOpen((o) => ({ ...o, [ m.id ]: !o[ m.id ] })) }
+                accessibility-label={ `${ m.namespace } ${ m.key }, ${ open[ m.id ] ? 'collapse' : 'expand' }` }
               >
-                <button
-                  type="button"
-                  onClick={ () => setOpen((o) => ({ ...o, [ m.id ]: !o[ m.id ] })) }
-                  style={ { all: 'unset', cursor: 'pointer', display: 'block', width: '100%' } }
+                <s-box
+                  padding="base"
+                  border-block-end-width="base"
+                  border-color="subdued"
                 >
-                  <InlineStack align="space-between" blockAlign="center" wrap={ false }>
-                    <BlockStack gap="100">
-                      <Text as="span" variant="bodyMd" fontWeight="semibold">
+                  <s-stack direction="inline" align-items="center" justify-content="space-between">
+                    <s-stack direction="block" gap="small-100">
+                      <s-text type="strong">
                         { m.namespace } · { m.key }
-                      </Text>
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        { m.type }
-                      </Text>
-                    </BlockStack>
-                    <Text as="span" variant="bodySm" tone="subdued">
+                      </s-text>
+                      <s-text color="subdued">{ m.type }</s-text>
+                    </s-stack>
+                    <s-text color="subdued">
                       { open[ m.id ] ? '▼' : '▶' }
-                    </Text>
-                  </InlineStack>
-                </button>
-                { open[ m.id ] ? (
-                  <Box paddingBlockStart="300">
-                    <pre
-                      style={ {
-                        margin: 0,
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        fontFamily: 'monospace',
-                        fontSize: '0.8125rem',
-                        color: 'var(--p-color-text-secondary)',
-                      } }
-                    >
-                      { m.value ?? '—' }
-                    </pre>
-                  </Box>
-                ) : null }
-              </Box>
+                    </s-text>
+                  </s-stack>
+                  { open[ m.id ] ? (
+                    <s-box padding-block-start="small">
+                      <pre
+                        style={ {
+                          margin: 0,
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          fontFamily: 'monospace',
+                          fontSize: '0.8125rem',
+                          opacity: 0.75,
+                        } }
+                      >
+                        { m.value ?? '—' }
+                      </pre>
+                    </s-box>
+                  ) : null }
+                </s-box>
+              </s-clickable>
             )) }
-          </BlockStack>
-        ) }
-      </Card>
+          </s-stack>
+        ) : null }
+      </s-section>
 
       { error && sorted.length > 0 ? (
-        <Box paddingBlockStart="400">
-          <Text as="p" tone="critical" variant="bodySm">
-            { error }
-          </Text>
-        </Box>
+        <s-paragraph tone="critical">{ error }</s-paragraph>
       ) : null }
 
       { hasNext && sorted.length > 0 ? (
-        <Box paddingBlockStart="400">
-          <Button
-            loading={ loadingMore }
-            disabled={ loadingMore || !cursor }
-            onClick={ async () => {
-              setLoadingMore(true);
-              setError(null);
-              try {
-                await load(true, cursor);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : String(e));
-              } finally {
-                setLoadingMore(false);
-              }
-            } }
-          >
-            Load more
-          </Button>
-        </Box>
+        <s-button
+          loading={ loadingMore || undefined }
+          disabled={ (loadingMore || !cursor) || undefined }
+          onClick={ async () => {
+            setLoadingMore(true);
+            setError(null);
+            try {
+              await load(true, cursor);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : String(e));
+            } finally {
+              setLoadingMore(false);
+            }
+          } }
+        >
+          Load more
+        </s-button>
       ) : null }
-    </Page>
+    </s-page>
   );
 }

@@ -1,13 +1,11 @@
-import { Card, Page, Text } from '@shopify/polaris';
-
 export default function SettingsPage() {
   return (
-    <Page title="Settings">
-      <Card>
-        <Text variant="bodyMd" as="p">
+    <s-page heading="Settings">
+      <s-section>
+        <s-paragraph>
           Settings placeholder — file maps to route /pages/settings via autodiscovery.
-        </Text>
-      </Card>
-    </Page>
+        </s-paragraph>
+      </s-section>
+    </s-page>
   );
 }
