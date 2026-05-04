@@ -1,5 +1,7 @@
 import { LitElement, html, nothing } from 'lit';
 
+const PAGE_SIZE = 100;
+
 function uniqKey(m) {
   return `${ m.namespace }\x1e${ m.key }`;
 }
@@ -11,6 +13,7 @@ class ShopMetafieldsPage extends LitElement {
     hasNext: { state: true },
     loading: { state: true },
     loadingMore: { state: true },
+    loadingAll: { state: true },
     error: { state: true },
     open: { state: true },
   };
@@ -22,6 +25,7 @@ class ShopMetafieldsPage extends LitElement {
     this.hasNext = false;
     this.loading = false;
     this.loadingMore = false;
+    this.loadingAll = false;
     this.error = null;
     this.open = {};
   }
@@ -53,7 +57,7 @@ class ShopMetafieldsPage extends LitElement {
 
   async load(append, afterCursor) {
     if (!this.shop) return;
-    const q = new URLSearchParams({ shop: this.shop, first: '50' });
+    const q = new URLSearchParams({ shop: this.shop, first: String(PAGE_SIZE) });
     if (afterCursor) q.set('after', afterCursor);
     const data = await fetch(`/api/shopMetafields?${ q }`).then((r) => r.json());
     if (!data.ok) {
@@ -100,14 +104,38 @@ class ShopMetafieldsPage extends LitElement {
     }
   }
 
+  async loadAll() {
+    this.loadingAll = true;
+    this.error = null;
+    try {
+      while (this.hasNext && this.cursor) {
+        await this.load(true, this.cursor);
+      }
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : String(e);
+    } finally {
+      this.loadingAll = false;
+    }
+  }
+
   render() {
     const sorted = [ ...this.rows ].sort((a, b) => uniqKey(a).localeCompare(uniqKey(b)));
     const showLoading = this.loading && sorted.length === 0;
     const showError = this.error && sorted.length === 0;
     const showEmpty = !showLoading && !showError && sorted.length === 0 && this.shop;
 
+    const countLabel = this.loadingAll
+      ? `Loading all… ${ sorted.length } so far`
+      : this.hasNext
+        ? `Showing ${ sorted.length } — more to load`
+        : `Showing all ${ sorted.length }`;
+    const busy = this.loadingMore || this.loadingAll;
+
     return html`
       <s-page heading='Shop metafields'>
+        ${ sorted.length > 0
+          ? html`<s-paragraph color='subdued'>${ countLabel }</s-paragraph>`
+          : nothing }
         <s-section padding=${ sorted.length > 0 ? 'none' : 'base' }>
           ${ !this.shop
             ? html`<s-paragraph>Open this app from the Shopify admin (needs <code>shop</code> in the URL).</s-paragraph>`
@@ -165,11 +193,18 @@ class ShopMetafieldsPage extends LitElement {
 
         ${ this.hasNext && sorted.length > 0
           ? html`
-            <s-button
-              ?loading=${ this.loadingMore }
-              ?disabled=${ this.loadingMore || !this.cursor }
-              @click=${ () => this.loadMore() }
-            >Load more</s-button>
+            <s-stack direction='inline' gap='small'>
+              <s-button
+                ?loading=${ this.loadingMore }
+                ?disabled=${ busy || !this.cursor }
+                @click=${ () => this.loadMore() }
+              >Load more</s-button>
+              <s-button
+                ?loading=${ this.loadingAll }
+                ?disabled=${ busy || !this.cursor }
+                @click=${ () => this.loadAll() }
+              >Load all</s-button>
+            </s-stack>
           `
           : nothing }
       </s-page>
