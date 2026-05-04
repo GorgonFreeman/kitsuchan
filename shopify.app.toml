@@ -1,13 +1,14 @@
-# Shopify CLI app config — extension preview and deploy.
-# Set `application_url` and `redirect_urls` to your public tunnel (same as HOST in `.env`).
-# See https://shopify.dev/docs/apps/tools/cli/configuration
+# Shopify CLI app config: `shopify app dev` previews this app, `shopify app deploy` releases extensions and config.
+# `application_url` and `[auth].redirect_urls` are the **production** URL — `npm run deploy` rewrites them after Cloud Run.
+# `automatically_update_urls_on_dev = true` lets `shopify app dev` swap them to the dev tunnel and revert on exit.
+# https://shopify.dev/docs/apps/tools/cli/configuration
 
 name = 'kitsuchan'
 handle = 'kitsuchan'
 
 client_id = 'ab540b86ceb52c60bd693d49ad5a3520'
 
-application_url = 'https://hosted-proudly-tea-smart.trycloudflare.com/'
+application_url = 'https://kitsuchan-446695340286.australia-southeast1.run.app/'
 embedded = true
 
 [build]
@@ -19,7 +20,7 @@ scopes = 'read_products,write_products,read_metaobjects'
 
 [auth]
 redirect_urls = [
-  'https://hosted-proudly-tea-smart.trycloudflare.com/auth/callback',
+  'https://kitsuchan-446695340286.australia-southeast1.run.app/auth/callback',
 ]
 
 [pos]
@@ -29,13 +30,11 @@ embedded = false
 api_version = '2026-04'
 
 [[webhooks.subscriptions]]
-topics = ['app/uninstalled']
+topics = [ 'app/uninstalled' ]
 uri = '/webhooks/app/uninstalled'
 
-
-
-
-
-
-
-
+[[web]]
+roles = [ 'frontend', 'backend' ]
+[web.commands]
+dev = 'npm run web:dev'
+build = 'npm run build'

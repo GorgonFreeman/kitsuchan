@@ -38,15 +38,14 @@ async function loadApiHandlers() {
 
 const apiHandlers = await loadApiHandlers();
 
+const appBridgeMarker = '<!-- shopify-app-bridge -->';
+
 function polarisShellHtml() {
   const indexPath = resolve(distDir, 'index.html');
   if (!existsSync(indexPath)) return null;
-  let raw = readFileSync(indexPath, 'utf8');
-  raw = raw.replace(
-    '</title>',
-    `</title>\n    <meta name="shopify-api-key" content="${ process.env.SHOPIFY_API_KEY }" />\n    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`,
-  );
-  return raw;
+  const raw = readFileSync(indexPath, 'utf8');
+  const tags = `<meta name="shopify-api-key" content="${ process.env.SHOPIFY_API_KEY }" />\n    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`;
+  return raw.replace(appBridgeMarker, tags);
 }
 
 function serveDistAsset(res, pathname) {

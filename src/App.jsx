@@ -30,12 +30,7 @@ function humanizeSlug(slug) {
     .join(' › ');
 }
 
-function RootRedirect() {
-  const { search } = useLocation();
-  return <Navigate to={ { pathname: '/pages/home', search } } replace />;
-}
-
-function FallbackRedirect() {
+function HomeRedirect() {
   const { search } = useLocation();
   return <Navigate to={ { pathname: '/pages/home', search } } replace />;
 }
@@ -75,12 +70,12 @@ export default function App() {
   return (
     <AppProvider i18n={ polarisEn }>
       <Routes>
-        <Route path="/" element={ <RootRedirect /> } />
+        <Route path="/" element={ <HomeRedirect /> } />
         <Route element={ <Shell /> }>
           { entries.map(({ slug, Component }) => (
             <Route key={ slug } path={ `/pages/${ slug }` } element={ <Component /> } />
           )) }
-          <Route path="*" element={ <FallbackRedirect /> } />
+          <Route path="*" element={ <HomeRedirect /> } />
         </Route>
       </Routes>
     </AppProvider>

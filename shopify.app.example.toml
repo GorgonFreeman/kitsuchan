@@ -1,6 +1,6 @@
-# Shopify CLI app config — extension preview (`shopify app dev`, `shopify app deploy`).
-# Copy to shopify.app.toml and fill in values (same tunnel/HOST idea as `.env`).
-# `client_id` is the Partner Dashboard “Client ID” (same value as SHOPIFY_API_KEY).
+# Copy to shopify.app.toml and replace `client_id` and the URLs.
+# `application_url` should be your production URL (Cloud Run / custom domain). `npm run deploy` will rewrite it.
+# `automatically_update_urls_on_dev = true` lets `shopify app dev` swap to a dev tunnel and revert on exit.
 # https://shopify.dev/docs/apps/tools/cli/configuration
 
 name = 'kitsuchan'
@@ -8,7 +8,7 @@ handle = 'kitsuchan'
 
 client_id = 'REPLACE_WITH_CLIENT_ID_FROM_PARTNERS'
 
-application_url = 'https://your-tunnel.trycloudflare.com/'
+application_url = 'https://your-prod.example.com/'
 embedded = true
 
 [build]
@@ -20,7 +20,7 @@ scopes = 'read_products,write_products'
 
 [auth]
 redirect_urls = [
-  'https://your-tunnel.trycloudflare.com/auth/callback',
+  'https://your-prod.example.com/auth/callback',
 ]
 
 [pos]
@@ -30,5 +30,11 @@ embedded = false
 api_version = '2026-04'
 
 [[webhooks.subscriptions]]
-topics = ['app/uninstalled']
+topics = [ 'app/uninstalled' ]
 uri = '/webhooks/app/uninstalled'
+
+[[web]]
+roles = [ 'frontend', 'backend' ]
+[web.commands]
+dev = 'npm run web:dev'
+build = 'npm run build'

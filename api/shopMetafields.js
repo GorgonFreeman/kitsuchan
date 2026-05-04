@@ -53,7 +53,8 @@ export default async function shopMetafields(req, res, { session }) {
   } catch (err) {
     console.error('shopMetafields', err);
     const gql = err?.response?.body?.errors?.graphQLErrors;
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    const status = err?.response?.code ?? 500;
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(
       JSON.stringify({
         ok: false,
