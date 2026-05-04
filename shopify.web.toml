@@ -1,0 +1,8 @@
+# Shopify CLI web-process config — one per web component, discovered recursively from repo root.
+# https://shopify.dev/docs/apps/tools/cli/configuration#web
+
+roles = [ 'frontend', 'backend' ]
+
+[commands]
+dev = 'npm run web:dev'
+build = 'npm run build'

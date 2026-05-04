@@ -32,9 +32,3 @@ api_version = '2026-04'
 [[webhooks.subscriptions]]
 topics = [ 'app/uninstalled' ]
 uri = '/webhooks/app/uninstalled'
-
-[[web]]
-roles = [ 'frontend', 'backend' ]
-[web.commands]
-dev = 'npm run web:dev'
-build = 'npm run build'

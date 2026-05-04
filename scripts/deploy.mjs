@@ -60,8 +60,8 @@ writeShopifyAppToml(publicUrl);
 console.log('shopifyAppToml updated:', `${ publicUrl }/`);
 
 const shopifyRes = spawnSync(
-  'npx',
-  [ '--yes', '@shopify/cli@latest', 'app', 'deploy', '--allow-updates' ],
+  'npm',
+  [ 'exec', '--', 'shopify', 'app', 'deploy', '--allow-updates' ],
   { stdio: 'inherit', cwd: root, shell: false },
 );
 if (shopifyRes.status !== 0) {

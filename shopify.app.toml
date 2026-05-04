@@ -8,7 +8,7 @@ handle = 'kitsuchan'
 
 client_id = 'ab540b86ceb52c60bd693d49ad5a3520'
 
-application_url = 'https://kitsuchan-446695340286.australia-southeast1.run.app/'
+application_url = 'https://kitsuchan-hjyfh6ynna-ts.a.run.app/'
 embedded = true
 
 [build]
@@ -20,7 +20,7 @@ scopes = 'read_products,write_products,read_metaobjects'
 
 [auth]
 redirect_urls = [
-  'https://kitsuchan-446695340286.australia-southeast1.run.app/auth/callback',
+  'https://kitsuchan-hjyfh6ynna-ts.a.run.app/auth/callback',
 ]
 
 [pos]
@@ -32,9 +32,3 @@ api_version = '2026-04'
 [[webhooks.subscriptions]]
 topics = [ 'app/uninstalled' ]
 uri = '/webhooks/app/uninstalled'
-
-[[web]]
-roles = [ 'frontend', 'backend' ]
-[web.commands]
-dev = 'npm run web:dev'
-build = 'npm run build'

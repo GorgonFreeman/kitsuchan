@@ -103,6 +103,18 @@ async function saveSession(session) {
 }
 
 createServer(async (req, res) => {
+  try {
+    await handleRequest(req, res);
+  } catch (err) {
+    console.error('requestError', err);
+    if (!res.writableEnded) {
+      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Internal error');
+    }
+  }
+}).listen(process.env.PORT);
+
+async function handleRequest(req, res) {
   const url = new URL(req.url, `https://${ req.headers.host }`);
 
   if (url.pathname === '/health') {
@@ -154,10 +166,26 @@ createServer(async (req, res) => {
   const shop = url.searchParams.get('shop');
 
   if (url.pathname === '/auth/callback') {
-    const { session } = await shopify.auth.callback({ rawRequest: req, rawResponse: res });
-    await saveSession(session);
-    res.writeHead(302, { Location: `/?shop=${ session.shop }&host=${ url.searchParams.get('host') }` });
-    res.end();
+    try {
+      const { session } = await shopify.auth.callback({ rawRequest: req, rawResponse: res });
+      await saveSession(session);
+      res.writeHead(302, { Location: `/?shop=${ session.shop }&host=${ url.searchParams.get('host') }` });
+      res.end();
+    } catch (err) {
+      console.error('authCallbackError', err.message);
+      if (!res.writableEnded) {
+        if (shop) {
+          const host = url.searchParams.get('host') ?? '';
+          res.writeHead(302, {
+            Location: `/?shop=${ encodeURIComponent(shop) }&host=${ encodeURIComponent(host) }`,
+          });
+          res.end();
+        } else {
+          res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end('Invalid OAuth callback');
+        }
+      }
+    }
     return;
   }
 
@@ -197,4 +225,4 @@ createServer(async (req, res) => {
     'Content-Security-Policy': `frame-ancestors https://${ shop } https://admin.shopify.com`,
   });
   res.end(shell);
-}).listen(process.env.PORT);
+}
