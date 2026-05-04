@@ -14,16 +14,12 @@
     "deploy": "node --env-file=.env scripts/deploy.mjs"
   },
   "dependencies": {
-    "@shopify/app-bridge-react": "^4.2.10",
     "@shopify/shopify-api": "^13.0.0",
     "@upstash/redis": "^1.37.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^7.14.2"
+    "lit": "^3.3.2"
   },
   "devDependencies": {
     "@shopify/cli": "^3.94.3",
-    "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.1",
     "vite": "^6.3.5"
   }
