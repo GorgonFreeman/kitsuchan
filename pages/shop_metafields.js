@@ -421,7 +421,7 @@ class ShopMetafieldsPage extends LitElement {
               <s-box padding-inline='small-100' padding-block='small-100'>
                 ${ pinning
                   ? html`<s-spinner accessibility-label='Updating pin' size='small'></s-spinner>`
-                  : html`<s-icon type='pin' size='small' color=${ pinned ? 'base' : 'subdued' }></s-icon>` }
+                  : html`<s-icon type=${ pinned ? 'star-filled' : 'star' } size='small' color=${ pinned ? 'base' : 'subdued' }></s-icon>` }
               </s-box>
             </s-clickable>
             <s-clickable
