@@ -56,6 +56,16 @@ class ThemeKillerPage extends LitElement {
     this.selected = { ...this.selected, [ id ]: checked };
   }
 
+  onSortChange(e) {
+    const v = e.currentTarget?.value;
+    if (typeof v === 'string') this.sortMode = v;
+  }
+
+  onRowCheckChange(t, e) {
+    const checked = Boolean(e.currentTarget?.checked);
+    this.toggle(t.id, t.role, checked);
+  }
+
   selectedIds() {
     return Object.entries(this.selected).filter(([, on]) => on).map(([ id ]) => id);
   }
@@ -82,6 +92,11 @@ class ThemeKillerPage extends LitElement {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '—';
     return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  rowDetails(t) {
+    const saved = `Saved ${ this.formatSavedAt(t.updatedAt) }`;
+    return t.role === 'MAIN' ? `${ saved } · Published (protected)` : saved;
   }
 
   async submitDelete() {
@@ -113,56 +128,53 @@ class ThemeKillerPage extends LitElement {
     return html`
       <s-page heading='Theme killer'>
         <s-section>
-          ${ this.error ? html`<s-paragraph tone='critical'>${ this.error }</s-paragraph>` : nothing }
-          <div
-            style='display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:0.75rem;margin-bottom:0.75rem'
-          >
-            <label style='display:flex;flex-direction:column;gap:0.25rem;max-width:20rem;font-size:0.875rem'>
-              Sort
-              <select
+          <s-stack direction='block' gap='base'>
+            ${ this.error ? html`<s-paragraph tone='critical'>${ this.error }</s-paragraph>` : nothing }
+            <s-stack direction='inline' align-items='end' justify-content='space-between' gap='base'>
+              <s-select
+                label='Sort'
+                name='theme-killer-sort'
                 .value=${ this.sortMode }
                 ?disabled=${ this.loading }
-                @change=${ (e) => {
-                  this.sortMode = e.target.value;
-                } }
+                @change=${ (e) => this.onSortChange(e) }
               >
-                <option value='updatedAt-desc'>Last updated (newest first)</option>
-                <option value='updatedAt-asc'>Last updated (oldest first)</option>
-                <option value='name-asc'>Name A-Z</option>
-                <option value='name-desc'>Name Z-A</option>
-              </select>
-            </label>
-            <s-button icon='refresh' @click=${ () => window.location.reload() }>Refresh</s-button>
-          </div>
-          ${ this.loading
-            ? html`<s-paragraph>Loading…</s-paragraph>`
-            : html`
-                ${ this.sortedThemes().map(
-                  (t) => html`
-                    <div style='display:flex;gap:0.75rem;align-items:baseline;margin-bottom:0.5rem;flex-wrap:wrap'>
-                      <input
-                        type='checkbox'
-                        ?disabled=${ t.role === 'MAIN' }
-                        .checked=${ Boolean(this.selected[ t.id ]) }
-                        @change=${ (e) => this.toggle(t.id, t.role, e.target.checked) }
-                      />
-                      <span>${ t.name }</span>
-                      <span style='font-size:0.8125rem;opacity:0.62'>Saved ${ this.formatSavedAt(t.updatedAt) }</span>
-                      ${ t.role === 'MAIN'
-                        ? html`<span style='opacity:0.75;font-size:0.875rem'>Published (protected)</span>`
-                        : nothing }
-                    </div>
-                  `,
-                ) }
-                <s-button
-                  style='margin-top:0.75rem'
-                  variant='primary'
-                  tone='critical'
-                  ?disabled=${ n === 0 }
-                  ?loading=${ this.busy }
-                  @click=${ () => this.submitDelete() }
-                >Delete ${ n } theme${ n === 1 ? '' : 's' }</s-button>
-              ` }
+                <s-option value='updatedAt-desc'>Last updated (newest first)</s-option>
+                <s-option value='updatedAt-asc'>Last updated (oldest first)</s-option>
+                <s-option value='name-asc'>Name A-Z</s-option>
+                <s-option value='name-desc'>Name Z-A</s-option>
+              </s-select>
+              <s-button icon='refresh' @click=${ () => window.location.reload() }>Refresh</s-button>
+            </s-stack>
+            ${ this.loading
+              ? html`
+                  <s-stack direction='inline' gap='small' align-items='center'>
+                    <s-spinner accessibility-label='Loading themes' size='base'></s-spinner>
+                    <s-text>Loading…</s-text>
+                  </s-stack>
+                `
+              : html`
+                  <s-stack direction='block' gap='small'>
+                    ${ this.sortedThemes().map(
+                      (t) => html`
+                        <s-checkbox
+                          label=${ t.name }
+                          details=${ this.rowDetails(t) }
+                          .checked=${ Boolean(this.selected[ t.id ]) }
+                          ?disabled=${ t.role === 'MAIN' }
+                          @change=${ (e) => this.onRowCheckChange(t, e) }
+                        ></s-checkbox>
+                      `,
+                    ) }
+                  </s-stack>
+                  <s-button
+                    variant='primary'
+                    tone='critical'
+                    ?disabled=${ n === 0 }
+                    ?loading=${ this.busy }
+                    @click=${ () => this.submitDelete() }
+                  >Delete ${ n } theme${ n === 1 ? '' : 's' }</s-button>
+                ` }
+          </s-stack>
         </s-section>
       </s-page>
     `;
