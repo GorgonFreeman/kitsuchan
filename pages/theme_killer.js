@@ -3,6 +3,7 @@ import { LitElement, html, nothing } from 'lit';
 class ThemeKillerPage extends LitElement {
   static properties = {
     themes: { state: true },
+    sortMode: { state: true },
     selected: { state: true },
     loading: { state: true },
     busy: { state: true },
@@ -12,6 +13,7 @@ class ThemeKillerPage extends LitElement {
   constructor() {
     super();
     this.themes = [];
+    this.sortMode = 'updatedAt-desc';
     this.selected = {};
     this.loading = false;
     this.busy = false;
@@ -58,6 +60,23 @@ class ThemeKillerPage extends LitElement {
     return Object.entries(this.selected).filter(([, on]) => on).map(([ id ]) => id);
   }
 
+  sortedThemes() {
+    const list = [ ...this.themes ];
+    const dash = this.sortMode.lastIndexOf('-');
+    const key = this.sortMode.slice(0, dash);
+    const dir = this.sortMode.slice(dash + 1);
+    const mult = dir === 'desc' ? -1 : 1;
+    list.sort((a, b) => {
+      if (key === 'updatedAt') {
+        const ta = new Date(a.updatedAt).getTime();
+        const tb = new Date(b.updatedAt).getTime();
+        return mult * (ta - tb);
+      }
+      return mult * String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' });
+    });
+    return list;
+  }
+
   async submitDelete() {
     const ids = this.selectedIds();
     if (!this.shop || ids.length === 0) return;
@@ -91,7 +110,23 @@ class ThemeKillerPage extends LitElement {
           ${ this.loading
             ? html`<s-paragraph>Loading…</s-paragraph>`
             : html`
-                ${ this.themes.map(
+                <div style='margin-bottom:0.75rem'>
+                  <label style='display:flex;flex-direction:column;gap:0.25rem;max-width:20rem;font-size:0.875rem'>
+                    Sort
+                    <select
+                      .value=${ this.sortMode }
+                      @change=${ (e) => {
+                        this.sortMode = e.target.value;
+                      } }
+                    >
+                      <option value='updatedAt-desc'>Last updated (newest first)</option>
+                      <option value='updatedAt-asc'>Last updated (oldest first)</option>
+                      <option value='name-asc'>Name A-Z</option>
+                      <option value='name-desc'>Name Z-A</option>
+                    </select>
+                  </label>
+                </div>
+                ${ this.sortedThemes().map(
                   (t) => html`
                     <div style='display:flex;gap:0.75rem;align-items:center;margin-bottom:0.5rem'>
                       <input

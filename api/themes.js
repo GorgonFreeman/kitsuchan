@@ -2,13 +2,20 @@
 
 import { shopify } from '../shopify-server.js';
 
+const PAGE = 150;
+
 const QUERY = `#graphql
-  query ThemesList($first: Int!) {
-    themes(first: $first) {
+  query ThemesList($first: Int!, $after: String) {
+    themes(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         id
         name
         role
+        updatedAt
       }
     }
   }
@@ -23,10 +30,18 @@ export default async function themes(req, res, { session }) {
 
   try {
     const client = new shopify.clients.Graphql({ session });
-    const { data } = await client.request(QUERY, { variables: { first: 110 } });
-    const nodes = data?.themes?.nodes ?? [];
+    const themesList = [];
+    let after = null;
+    for (;;) {
+      const { data } = await client.request(QUERY, { variables: { first: PAGE, after } });
+      const conn = data?.themes;
+      themesList.push(...(conn?.nodes ?? []));
+      const pageInfo = conn?.pageInfo ?? {};
+      if (!pageInfo.hasNextPage || !pageInfo.endCursor) break;
+      after = pageInfo.endCursor;
+    }
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ ok: true, themes: nodes }));
+    res.end(JSON.stringify({ ok: true, themes: themesList }));
   } catch (err) {
     console.error('themes', err);
     const gql = err?.response?.body?.errors?.graphQLErrors;
