@@ -12,7 +12,8 @@
     "web:dev": "vite build && concurrently -k \"vite build --watch\" \"node server.js\"",
     "dev": "shopify app dev",
     "deploy": "node --env-file=.env scripts/deploy.mjs",
-    "new": "node scripts/new.mjs"
+    "new": "node scripts/new.mjs",
+    "clear-sessions": "node --env-file=.env scripts/clear-kitsuchan-sessions.mjs"
   },
   "dependencies": {
     "@shopify/shopify-api": "^13.0.0",
