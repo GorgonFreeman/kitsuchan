@@ -1,7 +1,7 @@
 {
   "name": "Synchroniser le produit",
   "heading": "Synchroniser le produit",
-  "description": "Envoyer ce produit au pipeline de synchronisation du catalogue Apex.",
+  "description": "Synchroniser ce produit vers d'autres régions.",
   "sync": "Synchroniser",
   "done": "Terminé",
   "close": "Fermer",

@@ -1,7 +1,7 @@
 {
   "name": "Sync Product",
   "heading": "Sync Product",
-  "description": "Send this product to the Apex catalogue sync pipeline.",
+  "description": "Sync this product to other regions.",
   "sync": "Sync",
   "done": "Done",
   "close": "Close",
