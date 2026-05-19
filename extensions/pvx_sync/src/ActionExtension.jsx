@@ -34,7 +34,7 @@ function Extension() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || body.success !== true) {
-        throw new Error(body.error ?? `HTTP ${ res.status }`);
+        throw new Error(body.error ?? body.message ?? `HTTP ${ res.status }`);
       }
       setStatus('success');
     } catch (err) {
