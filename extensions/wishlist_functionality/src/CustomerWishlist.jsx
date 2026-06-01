@@ -12,6 +12,7 @@ import {
   addItems as apiAddItems,
   removeItems as apiRemoveItems,
   createBoard as apiCreateBoard,
+  editBoard as apiEditBoard,
   deleteBoard as apiDeleteBoard,
 } from './wishlistApi.js';
 import { configForShop } from './regionConfig.js';
@@ -39,6 +40,10 @@ function BoardCard({ board, emojis, customerId, config, onBoards, isOnly }) {
   const [editError, setEditError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState(board.name);
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState(null);
 
   const isDefault = board.id === BOARD_CONFIG.DEFAULT_BOARD_ID;
   const itemCount = board.items?.length ?? 0;
@@ -84,6 +89,23 @@ function BoardCard({ board, emojis, customerId, config, onBoards, isOnly }) {
     }
   }
 
+  async function handleRename() {
+    const name = newName.trim();
+    if (!name) { setRenameError('Board name is required'); return; }
+    setRenameBusy(true);
+    setRenameError(null);
+    try {
+      const result = await apiEditBoard(customerId, config, { boardId: board.id, boardName: name });
+      if (!result.success) { setRenameError(result.message); return; }
+      onBoards(result.boards);
+      setRenaming(false);
+    } catch (e) {
+      setRenameError(e.message);
+    } finally {
+      setRenameBusy(false);
+    }
+  }
+
   async function handleDelete() {
     setDeleteBusy(true);
     try {
@@ -125,6 +147,10 @@ function BoardCard({ board, emojis, customerId, config, onBoards, isOnly }) {
               Edit wishlist
             </s-button>
 
+            <s-button onClick={() => { setRenaming(v => !v); setRenameError(null); setNewName(board.name); }}>
+              Rename
+            </s-button>
+
             {!isDefault && !isOnly && (
               <s-button tone="critical" onClick={() => setConfirmDelete(true)}>
                 Delete
@@ -133,6 +159,24 @@ function BoardCard({ board, emojis, customerId, config, onBoards, isOnly }) {
           </s-stack>
 
           {editError && <s-banner tone="critical" heading={editError} />}
+
+          {renaming && (
+            <s-stack direction="block" gap="small">
+              {renameError && <s-banner tone="critical" heading={renameError} />}
+              <s-text-field
+                label="Board name"
+                value={newName}
+                maxLength={BOARD_CONFIG.MAX_NAME_LENGTH}
+                onChange={e => setNewName(e.target.value)}
+              />
+              <s-stack direction="inline" gap="small">
+                <s-button variant="primary" loading={renameBusy || undefined} onClick={handleRename}>
+                  Save name
+                </s-button>
+                <s-button onClick={() => { setRenaming(false); setRenameError(null); }}>Cancel</s-button>
+              </s-stack>
+            </s-stack>
+          )}
 
           {confirmDelete && (
             <s-banner tone="warning" heading={`Delete "${board.name}"?`}>
