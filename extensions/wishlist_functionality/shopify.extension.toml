@@ -1,15 +1,13 @@
-api_version = "2025-10"
+api_version = "2026-04"
 [[extensions]]
-# Change the merchant-facing name of the extension in locales/en.default.json
 name = "t:name"
 handle = "wishlist-functionality"
 type = "ui_extension"
 uid = "07cf4404-60d9-c513-8682-012c19ea4069f267361b"
 
-# Only 1 target can be specified for each Admin block extension
 [[extensions.targeting]]
-module = "./src/BlockExtension.jsx"
-target = "admin.product-details.block.render"
+module = "./src/CustomerWishlist.jsx"
+target = "admin.customer-details.block.render"
 
 
 # Valid extension targets:

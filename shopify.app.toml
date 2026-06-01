@@ -1,33 +1,29 @@
-# Shopify CLI app config: `shopify app dev` previews this app, `shopify app deploy` releases extensions and config.
-# `application_url` and `[auth].redirect_urls` are the **production** URL — `npm run deploy` rewrites them after Cloud Run.
-# `automatically_update_urls_on_dev = true` lets `shopify app dev` swap them to the dev tunnel and revert on exit.
-# https://shopify.dev/docs/apps/tools/cli/configuration
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-name = 'kitsuchan'
-handle = 'kitsuchan'
-
-client_id = 'ab540b86ceb52c60bd693d49ad5a3520'
-
-application_url = 'https://kitsuchan-446695340286.australia-southeast1.run.app/'
+client_id = "ab540b86ceb52c60bd693d49ad5a3520"
+name = "kitsuchan"
+application_url = "https://kitsuchan-446695340286.australia-southeast1.run.app/"
 embedded = true
+handle = "kitsuchan"
 
 [build]
 automatically_update_urls_on_dev = true
 
+[webhooks]
+api_version = "2026-04"
+
+[[webhooks.subscriptions]]
+uri = "/webhooks/app/uninstalled"
+topics = ["app/uninstalled"]
+
 [access_scopes]
-scopes = 'read_products,write_products,read_metaobjects,read_themes,write_themes'
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_metaobjects,read_products,read_themes,write_products,write_themes,read_customers"
 
 [auth]
 redirect_urls = [
-  'https://kitsuchan-446695340286.australia-southeast1.run.app/auth/callback',
+  "https://kitsuchan-446695340286.australia-southeast1.run.app/auth/callback",
 ]
 
 [pos]
 embedded = false
-
-[webhooks]
-api_version = '2026-04'
-
-[[webhooks.subscriptions]]
-topics = [ 'app/uninstalled' ]
-uri = '/webhooks/app/uninstalled'

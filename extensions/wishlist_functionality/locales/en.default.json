@@ -1,4 +1,24 @@
 {
-  "name": "wishlist_functionality",
-  "welcome": "Welcome to the {{target}} extension!"
+  "name": "Wishlist Manager",
+  "heading": "Wishlist boards",
+  "loading": "Loading wishlist…",
+  "noBoards": "This customer has no wishlist boards yet.",
+  "noItems": "No items in this board.",
+  "createBoard": "Create board",
+  "boardName": "Board name",
+  "boardEmoji": "Emoji",
+  "boardColour": "Colour",
+  "save": "Save",
+  "cancel": "Cancel",
+  "edit": "Edit",
+  "delete": "Delete",
+  "confirmDelete": "Confirm delete",
+  "deleteWarning": "Items in this board will be lost.",
+  "show": "Show",
+  "hide": "Hide",
+  "remove": "Remove",
+  "removeFromAll": "Remove from all",
+  "items_one": "{{count}} item",
+  "items_other": "{{count}} items",
+  "errorPrefix": "Something went wrong"
 }

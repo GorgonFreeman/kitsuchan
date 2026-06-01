@@ -1,4 +1,24 @@
 {
-  "name": "wishlist_functionality",
-  "welcome": "Bienvenue dans l'extension {{target}}!"
+  "name": "Gestionnaire de listes de souhaits",
+  "heading": "Tableaux de souhaits",
+  "loading": "Chargement…",
+  "noBoards": "Ce client n'a pas encore de tableaux.",
+  "noItems": "Aucun article dans ce tableau.",
+  "createBoard": "Créer un tableau",
+  "boardName": "Nom du tableau",
+  "boardEmoji": "Emoji",
+  "boardColour": "Couleur",
+  "save": "Enregistrer",
+  "cancel": "Annuler",
+  "edit": "Modifier",
+  "delete": "Supprimer",
+  "confirmDelete": "Confirmer la suppression",
+  "deleteWarning": "Les articles de ce tableau seront perdus.",
+  "show": "Afficher",
+  "hide": "Masquer",
+  "remove": "Retirer",
+  "removeFromAll": "Retirer de tous",
+  "items_one": "{{count}} article",
+  "items_other": "{{count}} articles",
+  "errorPrefix": "Une erreur est survenue"
 }
