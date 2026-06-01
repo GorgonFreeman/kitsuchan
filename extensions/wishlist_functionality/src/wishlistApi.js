@@ -38,6 +38,15 @@ export const editBoard = (customerId, config, { boardId, boardName, colour, emoj
 export const deleteBoard = (customerId, config, boardId) =>
   callOperation({ customerId, config, operation: 'deleteBoard', boardId });
 
+export const addItems = (customerId, config, boardId, productIds) =>
+  callOperation({
+    customerId,
+    config,
+    operation: 'add',
+    boardId,
+    items: productIds.map(productId => ({ productId })),
+  });
+
 export const removeItem = (customerId, config, boardId, productId) =>
   callOperation({ customerId, config, operation: 'remove', boardId, items: [{ productId }] });
 
