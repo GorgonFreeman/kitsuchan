@@ -47,6 +47,15 @@ export const addItems = (customerId, config, boardId, productIds) =>
     items: productIds.map(productId => ({ productId })),
   });
 
+export const removeItems = (customerId, config, boardId, productIds) =>
+  callOperation({
+    customerId,
+    config,
+    operation: 'remove',
+    boardId,
+    items: productIds.map(productId => ({ productId })),
+  });
+
 export const removeItem = (customerId, config, boardId, productId) =>
   callOperation({ customerId, config, operation: 'remove', boardId, items: [{ productId }] });
 
