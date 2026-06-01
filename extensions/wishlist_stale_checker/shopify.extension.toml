@@ -1,0 +1,10 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "t:name"
+handle = "wishlist-stale-checker"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/WishlistStalenessCheck.jsx"
+target = "admin.customer-details.action.render"
