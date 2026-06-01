@@ -7,6 +7,7 @@ import {
   getShopDomain,
   getInitialBoards,
   getWishlistEmojis,
+  getWishlistColours,
 } from './adminGraphql.js';
 import {
   addItems as apiAddItems,
@@ -35,23 +36,57 @@ function parseProductId(wishlistId) {
 
 // ─── Board card ───────────────────────────────────────────────────────────────
 
-function BoardCard({ board, emojis, customerId, config, onBoards, isOnly }) {
-  const [editBusy, setEditBusy] = useState(false);
-  const [editError, setEditError] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  const [newName, setNewName] = useState(board.name);
-  const [renameBusy, setRenameBusy] = useState(false);
-  const [renameError, setRenameError] = useState(null);
-
+function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnly }) {
   const isDefault = board.id === BOARD_CONFIG.DEFAULT_BOARD_ID;
   const itemCount = board.items?.length ?? 0;
   const emojiEntry = emojis.find(e => e.value === board.emoji) ?? { type: 'emoji', display: board.emoji ?? '❤️' };
 
-  async function handleEditWishlist() {
-    setEditBusy(true);
-    setEditError(null);
+  // Edit form state
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(board.name);
+  const [emoji, setEmoji] = useState(board.emoji ?? emojis.find(e => e.default)?.value ?? '');
+  const [colour, setColour] = useState(board.colour ?? colours.find(c => c.default)?.colour ?? '#FF6B6B');
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [productsBusy, setProductsBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Delete state
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  function openEdit() {
+    setName(board.name);
+    setEmoji(board.emoji ?? emojis.find(e => e.default)?.value ?? '');
+    setColour(board.colour ?? colours.find(c => c.default)?.colour ?? '#FF6B6B');
+    setError(null);
+    setEditing(true);
+  }
+
+  async function handleSave() {
+    const trimmed = name.trim();
+    if (!trimmed) { setError('Board name is required'); return; }
+    setSaveBusy(true);
+    setError(null);
+    try {
+      const result = await apiEditBoard(customerId, config, {
+        boardId: board.id,
+        boardName: trimmed,
+        emoji,
+        colour,
+      });
+      if (!result.success) { setError(result.message); return; }
+      onBoards(result.boards);
+      setEditing(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaveBusy(false);
+    }
+  }
+
+  async function handleEditProducts() {
+    setProductsBusy(true);
+    setError(null);
     try {
       const currentIds = (board.items ?? []).map(parseProductId);
       const selectionIds = currentIds.map(id => ({ id: `gid://shopify/Product/${id}` }));
@@ -69,40 +104,22 @@ function BoardCard({ board, emojis, customerId, config, onBoards, isOnly }) {
       const afterSet = new Set(picked.map(p => gidToNumeric(p.id)).filter(Boolean));
       const toAdd = [...afterSet].filter(id => !beforeSet.has(id));
       const toRemove = [...beforeSet].filter(id => !afterSet.has(id));
-
       if (!toAdd.length && !toRemove.length) return;
 
       let result;
       if (toAdd.length) {
         result = await apiAddItems(customerId, config, board.id, toAdd);
-        if (!result.success) { setEditError(result.message); return; }
+        if (!result.success) { setError(result.message); return; }
       }
       if (toRemove.length) {
         result = await apiRemoveItems(customerId, config, board.id, toRemove);
-        if (!result.success) { setEditError(result.message); return; }
+        if (!result.success) { setError(result.message); return; }
       }
       if (result?.boards) onBoards(result.boards);
     } catch (e) {
-      if (!e.message?.toLowerCase().includes('cancel')) setEditError(e.message);
+      if (!e.message?.toLowerCase().includes('cancel')) setError(e.message);
     } finally {
-      setEditBusy(false);
-    }
-  }
-
-  async function handleRename() {
-    const name = newName.trim();
-    if (!name) { setRenameError('Board name is required'); return; }
-    setRenameBusy(true);
-    setRenameError(null);
-    try {
-      const result = await apiEditBoard(customerId, config, { boardId: board.id, boardName: name });
-      if (!result.success) { setRenameError(result.message); return; }
-      onBoards(result.boards);
-      setRenaming(false);
-    } catch (e) {
-      setRenameError(e.message);
-    } finally {
-      setRenameBusy(false);
+      setProductsBusy(false);
     }
   }
 
@@ -110,22 +127,25 @@ function BoardCard({ board, emojis, customerId, config, onBoards, isOnly }) {
     setDeleteBusy(true);
     try {
       const result = await apiDeleteBoard(customerId, config, board.id);
-      if (!result.success) { setEditError(result.message); setConfirmDelete(false); return; }
+      if (!result.success) { setError(result.message); setConfirmDelete(false); return; }
       onBoards(result.boards);
     } catch (e) {
-      setEditError(e.message);
+      setError(e.message);
     } finally {
       setDeleteBusy(false);
       setConfirmDelete(false);
     }
   }
 
+  const selectedEmojiEntry = emojis.find(e => e.value === emoji) ?? { type: 'emoji', display: emoji };
+
   return (
     <div style={{ border: '1px solid #e1e3e5', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
       <div style={{ height: 4, background: board.colour ?? '#FF6B6B' }} />
       <div style={{ padding: 16 }}>
-        <s-stack direction="block" gap="small">
+        <s-stack direction="block" gap="base">
 
+          {/* Header row */}
           <s-stack direction="inline" gap="small" alignItems="center">
             <div style={{
               width: 40, height: 40, borderRadius: 8, flexShrink: 0,
@@ -143,41 +163,98 @@ function BoardCard({ board, emojis, customerId, config, onBoards, isOnly }) {
               </s-text>
             </div>
 
-            <s-button variant="primary" loading={editBusy || undefined} onClick={handleEditWishlist}>
-              Edit wishlist
-            </s-button>
-
-            <s-button onClick={() => { setRenaming(v => !v); setRenameError(null); setNewName(board.name); }}>
-              Rename
+            <s-button variant="primary" onClick={editing ? () => { setEditing(false); setError(null); } : openEdit}>
+              {editing ? 'Close' : 'Edit board'}
             </s-button>
 
             {!isDefault && !isOnly && (
-              <s-button tone="critical" onClick={() => setConfirmDelete(true)}>
+              <s-button tone="critical" onClick={() => { setConfirmDelete(true); setEditing(false); }}>
                 Delete
               </s-button>
             )}
           </s-stack>
 
-          {editError && <s-banner tone="critical" heading={editError} />}
+          {/* Inline edit form */}
+          {editing && (
+            <s-box padding="base" background="subdued" borderRadius="base">
+              <s-stack direction="block" gap="base">
+                {error && <s-banner tone="critical" heading={error} />}
 
-          {renaming && (
-            <s-stack direction="block" gap="small">
-              {renameError && <s-banner tone="critical" heading={renameError} />}
-              <s-text-field
-                label="Board name"
-                value={newName}
-                maxLength={BOARD_CONFIG.MAX_NAME_LENGTH}
-                onChange={e => setNewName(e.target.value)}
-              />
-              <s-stack direction="inline" gap="small">
-                <s-button variant="primary" loading={renameBusy || undefined} onClick={handleRename}>
-                  Save name
-                </s-button>
-                <s-button onClick={() => { setRenaming(false); setRenameError(null); }}>Cancel</s-button>
+                <s-text-field
+                  label="Board name"
+                  value={name}
+                  maxLength={BOARD_CONFIG.MAX_NAME_LENGTH}
+                  onChange={e => setName(e.target.value)}
+                />
+
+                {emojis.length > 0 && (
+                  <s-stack direction="block" gap="small">
+                    <s-text color="subdued">Emoji</s-text>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {emojis.map(entry => (
+                        <s-clickable
+                          key={entry.value}
+                          onClick={() => setEmoji(entry.value)}
+                          padding="base"
+                          borderRadius="base"
+                          background={emoji === entry.value ? 'base' : undefined}
+                        >
+                          <div style={{
+                            outline: emoji === entry.value ? `2px solid ${colour}` : '2px solid transparent',
+                            borderRadius: 6,
+                            padding: 2,
+                          }}>
+                            <EmojiSwatch entry={entry} size={22} />
+                          </div>
+                        </s-clickable>
+                      ))}
+                    </div>
+                  </s-stack>
+                )}
+
+                {colours.length > 0 && (
+                  <s-stack direction="block" gap="small">
+                    <s-text color="subdued">Colour</s-text>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {colours.map(c => (
+                        <s-clickable key={c.value} onClick={() => setColour(c.colour)}>
+                          <div style={{
+                            width: 28, height: 28, borderRadius: '50%',
+                            background: c.colour,
+                            outline: colour === c.colour ? '2px solid #333' : '2px solid transparent',
+                            outlineOffset: 2,
+                          }} />
+                        </s-clickable>
+                      ))}
+                    </div>
+                  </s-stack>
+                )}
+
+                <s-divider />
+
+                <s-stack direction="inline" gap="small" alignItems="center">
+                  <s-button
+                    loading={productsBusy || undefined}
+                    onClick={handleEditProducts}
+                  >
+                    Edit products
+                  </s-button>
+                  <s-text color="subdued">
+                    {itemCount === 0 ? 'No products yet' : `${itemCount} product${itemCount !== 1 ? 's' : ''} in this board`}
+                  </s-text>
+                </s-stack>
+
+                <s-stack direction="inline" gap="small">
+                  <s-button variant="primary" loading={saveBusy || undefined} onClick={handleSave}>
+                    Save changes
+                  </s-button>
+                  <s-button onClick={() => { setEditing(false); setError(null); }}>Cancel</s-button>
+                </s-stack>
               </s-stack>
-            </s-stack>
+            </s-box>
           )}
 
+          {/* Delete confirm */}
           {confirmDelete && (
             <s-banner tone="warning" heading={`Delete "${board.name}"?`}>
               <s-stack direction="inline" gap="small">
@@ -207,30 +284,30 @@ function Extension() {
   const [config, setConfig] = useState(null);
   const [boards, setBoards] = useState([]);
   const [emojis, setEmojis] = useState([]);
-
+  const [colours, setColours] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [createBusy, setCreateBusy] = useState(false);
   const [createError, setCreateError] = useState(null);
 
-  const handleBoards = useCallback((newBoards) => {
-    setBoards(newBoards);
-  }, []);
+  const handleBoards = useCallback((newBoards) => setBoards(newBoards), []);
 
   useEffect(() => {
     if (!customerGid) { setStatus('error'); setLoadError('No customer selected.'); return; }
     let cancelled = false;
     async function load() {
       try {
-        const [domain, initialBoards, fetchedEmojis] = await Promise.all([
+        const [domain, initialBoards, fetchedEmojis, fetchedColours] = await Promise.all([
           getShopDomain(),
           getInitialBoards(customerGid),
           getWishlistEmojis(),
+          getWishlistColours(),
         ]);
         if (cancelled) return;
         setConfig(configForShop(domain));
         setBoards(initialBoards);
         setEmojis(fetchedEmojis);
+        setColours(fetchedColours);
         setStatus('ready');
       } catch (e) {
         if (!cancelled) { setLoadError(e.message); setStatus('error'); }
@@ -299,6 +376,7 @@ function Extension() {
             key={board.id}
             board={board}
             emojis={emojis}
+            colours={colours}
             customerId={customerId}
             config={config}
             onBoards={handleBoards}
