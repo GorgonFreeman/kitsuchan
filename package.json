@@ -16,9 +16,12 @@
     "clear-sessions": "node --env-file=.env scripts/clear-kitsuchan-sessions.mjs"
   },
   "dependencies": {
+    "@preact/signals": "^2.9.1",
     "@shopify/shopify-api": "^13.0.0",
+    "@shopify/ui-extensions": "2025.10.15",
     "@upstash/redis": "^1.37.0",
-    "lit": "^3.3.2"
+    "lit": "^3.3.2",
+    "preact": "^10.29.2"
   },
   "devDependencies": {
     "@shopify/cli": "^3.94.3",
