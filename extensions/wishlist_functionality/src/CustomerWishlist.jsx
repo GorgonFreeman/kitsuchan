@@ -11,6 +11,7 @@ import {
   getWishlistColours,
 } from './adminGraphql.js';
 import {
+  addItems as apiAddItems,
   createBoard as apiCreateBoard,
   editBoard as apiEditBoard,
   deleteBoard as apiDeleteBoard,
@@ -40,7 +41,26 @@ function parseWishlistId(id) {
   return { productId: parts[0], variantId: parts[1] ?? null };
 }
 
-// ─── Board form (create / edit) ──────────────────────────────────────────────
+// ─── Skeleton tile shown while product data is loading ────────────────────────
+
+function TileSkeleton() {
+  return (
+    <div style={{
+      border: '1px solid #e1e3e5',
+      borderRadius: 8,
+      overflow: 'hidden',
+      background: '#fff',
+    }}>
+      <div style={{ aspectRatio: '1', background: '#f0f0f0' }} />
+      <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ height: 12, borderRadius: 4, background: '#e8e8e8', width: '80%' }} />
+        <div style={{ height: 12, borderRadius: 4, background: '#e8e8e8', width: '50%' }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Board form (create / edit) ───────────────────────────────────────────────
 
 function BoardForm({ initial, emojis, colours, onSave, onCancel, saving, error }) {
   const defaultEmoji = emojis.find(e => e.default) ?? emojis[0];
@@ -50,74 +70,76 @@ function BoardForm({ initial, emojis, colours, onSave, onCancel, saving, error }
   const [emoji, setEmoji] = useState(initial?.emoji ?? defaultEmoji?.value ?? '');
   const [colour, setColour] = useState(initial?.colour ?? defaultColour?.colour ?? '#FF6B6B');
 
-  const selectedEmojiEntry = emojis.find(e => e.value === emoji) ?? emojis.find(e => e.display === emoji);
-
   return (
-    <s-box padding="base" border="base" border-radius="base">
+    <s-box padding="base" border="base" borderRadius="base">
       <s-stack direction="block" gap="base">
-        {error && <s-banner tone="critical"><s-text>{error}</s-text></s-banner>}
+        {error && <s-banner tone="critical" heading={error} />}
 
         <s-text-field
           label="Board name"
           value={name}
-          onInput={e => setName(e.target.value)}
-          max-length={BOARD_CONFIG.MAX_NAME_LENGTH}
+          maxLength={BOARD_CONFIG.MAX_NAME_LENGTH}
           placeholder="e.g. Summer Looks"
+          onChange={e => setName(e.target.value)}
         />
 
-        <s-stack direction="block" gap="small">
-          <s-text type="subdued">Emoji</s-text>
-          <s-stack direction="inline" gap="small" wrap="wrap">
-            {emojis.map(entry => (
-              <s-pressable
-                key={entry.value}
-                onPress={() => setEmoji(entry.value)}
-                style={{
-                  padding: '4px',
-                  borderRadius: '6px',
-                  border: emoji === entry.value ? '2px solid #333' : '2px solid transparent',
-                  background: emoji === entry.value ? '#f0f0f0' : 'transparent',
-                }}
-              >
-                <EmojiSwatch entry={entry} size={22} />
-              </s-pressable>
-            ))}
+        {emojis.length > 0 && (
+          <s-stack direction="block" gap="small">
+            <s-text color="subdued">Emoji</s-text>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {emojis.map(entry => (
+                <s-clickable
+                  key={entry.value}
+                  onClick={() => setEmoji(entry.value)}
+                  padding="base"
+                  borderRadius="base"
+                  background={emoji === entry.value ? 'subdued' : undefined}
+                >
+                  <EmojiSwatch entry={entry} size={22} />
+                </s-clickable>
+              ))}
+            </div>
           </s-stack>
-        </s-stack>
+        )}
 
-        <s-stack direction="block" gap="small">
-          <s-text type="subdued">Colour</s-text>
-          <s-stack direction="inline" gap="small" wrap="wrap">
-            {colours.map(c => (
-              <s-pressable key={c.value} onPress={() => setColour(c.colour)}>
-                <ColourSwatch value={c.colour} size={24} selected={colour === c.colour} />
-              </s-pressable>
-            ))}
+        {colours.length > 0 && (
+          <s-stack direction="block" gap="small">
+            <s-text color="subdued">Colour</s-text>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {colours.map(c => (
+                <s-clickable key={c.value} onClick={() => setColour(c.colour)}>
+                  <ColourSwatch value={c.colour} size={28} selected={colour === c.colour} />
+                </s-clickable>
+              ))}
+            </div>
           </s-stack>
-        </s-stack>
+        )}
 
         <s-stack direction="inline" gap="small">
           <s-button
             variant="primary"
-            loading={saving}
-            onPress={() => onSave({ name: name.trim(), emoji, colour })}
+            loading={saving || undefined}
+            onClick={() => onSave({ name: name.trim(), emoji, colour })}
           >
-            Save
+            Save board
           </s-button>
-          <s-button onPress={onCancel}>Cancel</s-button>
+          <s-button onClick={onCancel}>Cancel</s-button>
         </s-stack>
       </s-stack>
     </s-box>
   );
 }
 
-// ─── Single item row ──────────────────────────────────────────────────────────
+// ─── Product tile ─────────────────────────────────────────────────────────────
 
-function ItemRow({ wishlistId, boardId, productMap, customerId, config, onBoards }) {
+function ProductTile({ wishlistId, boardId, productMap, productsLoading, customerId, config, onBoards }) {
   const { productId } = parseWishlistId(wishlistId);
   const info = productMap.get(productId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+
+  // Show skeleton while we're still fetching product data
+  if (productsLoading && !info) return <TileSkeleton />;
 
   async function handle(op) {
     setBusy(true);
@@ -134,51 +156,65 @@ function ItemRow({ wishlistId, boardId, productMap, customerId, config, onBoards
   }
 
   return (
-    <s-box padding-block="small" padding-inline="small" border="base" border-radius="base">
-      <s-stack direction="inline" gap="base" block-align="center">
-        {info?.image && (
+    <div style={{
+      border: '1px solid #e1e3e5',
+      borderRadius: 8,
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      background: '#fff',
+    }}>
+      {/* Thumbnail */}
+      <div style={{ position: 'relative', aspectRatio: '1', background: '#f6f6f7' }}>
+        {info?.image ? (
           <img
             src={info.image.url}
             alt={info.image.altText ?? info?.title ?? ''}
-            width={48}
-            height={48}
-            style={{ objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <s-icon type="product" />
+          </div>
         )}
-        <s-box grow="true">
-          <s-text type="strong">{info?.title ?? productId}</s-text>
-          {error && <s-text tone="critical">{error}</s-text>}
-        </s-box>
-        <s-button
-          size="slim"
-          loading={busy}
-          onPress={() => handle(() => apiRemoveItem(customerId, config, boardId, productId))}
-        >
-          Remove
-        </s-button>
-        <s-button
-          size="slim"
-          tone="critical"
-          loading={busy}
-          onPress={() => handle(() => apiRemoveAllItems(customerId, config, productId))}
-        >
-          Remove from all
-        </s-button>
-      </s-stack>
-    </s-box>
+      </div>
+
+      {/* Info + actions */}
+      <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+        <s-text type="strong">{info?.title ?? 'Unknown product'}</s-text>
+        {error && <s-text tone="critical">{error}</s-text>}
+        <div style={{ display: 'flex', gap: 4, marginTop: 'auto', flexWrap: 'wrap' }}>
+          <s-button
+            loading={busy || undefined}
+            onClick={() => handle(() => apiRemoveItem(customerId, config, boardId, productId))}
+          >
+            Remove
+          </s-button>
+          <s-button
+            tone="critical"
+            loading={busy || undefined}
+            onClick={() => handle(() => apiRemoveAllItems(customerId, config, productId))}
+          >
+            All boards
+          </s-button>
+        </div>
+      </div>
+    </div>
   );
 }
 
 // ─── Single board card ────────────────────────────────────────────────────────
 
-function BoardCard({ board, emojis, colours, productMap, customerId, config, onBoards, isOnly }) {
+function BoardCard({ board, emojis, colours, productMap, productsLoading, customerId, config, onBoards, isOnly }) {
   const [expanded, setExpanded] = useState(false);
   const [mode, setMode] = useState('view'); // 'view' | 'edit' | 'delete'
   const [busy, setBusy] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
   const [formError, setFormError] = useState(null);
 
   const isDefault = board.id === BOARD_CONFIG.DEFAULT_BOARD_ID;
   const emojiEntry = emojis.find(e => e.value === board.emoji) ?? { type: 'emoji', display: board.emoji ?? '❤️' };
+  const itemCount = board.items?.length ?? 0;
 
   async function handleEdit({ name, emoji, colour }) {
     if (!name) { setFormError('Board name is required'); return; }
@@ -214,80 +250,175 @@ function BoardCard({ board, emojis, colours, productMap, customerId, config, onB
     }
   }
 
+  async function handleAddProducts() {
+    setAddBusy(true);
+    setFormError(null);
+    try {
+      const currentGids = (board.items ?? []).map(id => ({
+        id: `gid://shopify/Product/${parseWishlistId(id).productId}`,
+      }));
+
+      const picked = await shopify.resourcePicker({
+        type: 'product',
+        multiple: true,
+        selectionIds: currentGids,
+        query: 'published_status:published',
+      });
+
+      if (!picked?.length) return;
+
+      const currentIds = new Set((board.items ?? []).map(id => parseWishlistId(id).productId));
+      const newProductIds = picked
+        .map(p => gidToNumeric(p.id))
+        .filter(id => id && !currentIds.has(id));
+
+      if (!newProductIds.length) return;
+
+      const result = await apiAddItems(customerId, config, board.id, newProductIds);
+      if (result.success) {
+        onBoards(result.boards);
+        setExpanded(true);
+      } else {
+        setFormError(result.message);
+      }
+    } catch (e) {
+      if (!e.message?.toLowerCase().includes('cancel')) setFormError(e.message);
+    } finally {
+      setAddBusy(false);
+    }
+  }
+
   return (
-    <s-box border="base" border-radius="base" padding="base">
-      <s-stack direction="block" gap="small">
+    <div style={{
+      border: '1px solid #e1e3e5',
+      borderRadius: 8,
+      overflow: 'hidden',
+      background: '#fff',
+    }}>
+      {/* Coloured top stripe using board colour */}
+      <div style={{ height: 4, background: board.colour ?? '#FF6B6B' }} />
 
-        {/* Board header row */}
-        <s-stack direction="inline" gap="small" block-align="center">
-          <EmojiSwatch entry={emojiEntry} size={20} />
-          <ColourSwatch value={board.colour ?? '#FF6B6B'} size={14} />
-          <s-box grow="true">
-            <s-text type="strong">{board.name}</s-text>
-            <s-text type="subdued"> · {board.items?.length ?? 0} item{board.items?.length !== 1 ? 's' : ''}</s-text>
-          </s-box>
-          <s-button size="slim" onPress={() => setExpanded(v => !v)}>
-            {expanded ? 'Hide' : 'Show'}
-          </s-button>
-          <s-button size="slim" onPress={() => { setMode(mode === 'edit' ? 'view' : 'edit'); setFormError(null); }}>
-            Edit
-          </s-button>
-          {!isDefault && !isOnly && (
+      <div style={{ padding: 16 }}>
+        <s-stack direction="block" gap="base">
+
+          {/* Board header */}
+          <s-stack direction="inline" gap="small" alignItems="center">
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: 8,
+              background: `${board.colour ?? '#FF6B6B'}22`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <EmojiSwatch entry={emojiEntry} size={22} />
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <s-text type="strong">{board.name}</s-text>
+              <br />
+              <s-text color="subdued">
+                {itemCount === 0
+                  ? 'Empty board'
+                  : `${itemCount} product${itemCount !== 1 ? 's' : ''}`}
+              </s-text>
+            </div>
+
+            {/* Primary action */}
             <s-button
-              size="slim"
-              tone="critical"
-              onPress={() => setMode(mode === 'delete' ? 'view' : 'delete')}
+              variant="primary"
+              loading={addBusy || undefined}
+              onClick={handleAddProducts}
             >
-              Delete
+              Add products
             </s-button>
-          )}
-        </s-stack>
 
-        {/* Edit form */}
-        {mode === 'edit' && (
-          <BoardForm
-            initial={board}
-            emojis={emojis}
-            colours={colours}
-            onSave={handleEdit}
-            onCancel={() => { setMode('view'); setFormError(null); }}
-            saving={busy}
-            error={formError}
-          />
-        )}
+            {/* Show/hide toggle */}
+            {itemCount > 0 && (
+              <s-button onClick={() => setExpanded(v => !v)}>
+                {expanded ? 'Hide' : 'View'}
+              </s-button>
+            )}
 
-        {/* Delete confirm */}
-        {mode === 'delete' && (
-          <s-box padding="small" background="subdued" border-radius="base">
-            <s-stack direction="inline" gap="small" block-align="center">
-              <s-text>Delete "{board.name}"? Items in this board will be lost.</s-text>
-              {formError && <s-text tone="critical">{formError}</s-text>}
-              <s-button tone="critical" loading={busy} onPress={handleDelete}>Confirm delete</s-button>
-              <s-button onPress={() => { setMode('view'); setFormError(null); }}>Cancel</s-button>
-            </s-stack>
-          </s-box>
-        )}
-
-        {/* Items list */}
-        {expanded && (
-          <s-stack direction="block" gap="small">
-            {!board.items?.length && <s-text type="subdued">No items in this board.</s-text>}
-            {board.items?.map(id => (
-              <ItemRow
-                key={id}
-                wishlistId={id}
-                boardId={board.id}
-                productMap={productMap}
-                customerId={customerId}
-                config={config}
-                onBoards={onBoards}
-              />
-            ))}
+            {/* Secondary actions in a menu */}
+            <s-menu id={`board-menu-${board.id}`} accessibilityLabel="Board actions">
+              <s-button
+                variant="tertiary"
+                onClick={() => { setMode(mode === 'edit' ? 'view' : 'edit'); setFormError(null); }}
+              >
+                Edit board
+              </s-button>
+              {!isDefault && !isOnly && (
+                <s-button
+                  variant="tertiary"
+                  tone="critical"
+                  onClick={() => setMode(mode === 'delete' ? 'view' : 'delete')}
+                >
+                  Delete board
+                </s-button>
+              )}
+            </s-menu>
           </s-stack>
-        )}
 
-      </s-stack>
-    </s-box>
+          {/* Error banner */}
+          {formError && mode === 'view' && (
+            <s-banner tone="critical" heading={formError} />
+          )}
+
+          {/* Edit form */}
+          {mode === 'edit' && (
+            <BoardForm
+              initial={board}
+              emojis={emojis}
+              colours={colours}
+              onSave={handleEdit}
+              onCancel={() => { setMode('view'); setFormError(null); }}
+              saving={busy}
+              error={formError}
+            />
+          )}
+
+          {/* Delete confirm */}
+          {mode === 'delete' && (
+            <s-banner tone="warning" heading={`Delete "${board.name}"?`}>
+              <s-stack direction="inline" gap="small">
+                <s-button tone="critical" loading={busy || undefined} onClick={handleDelete}>
+                  Yes, delete board
+                </s-button>
+                <s-button onClick={() => { setMode('view'); setFormError(null); }}>
+                  Keep board
+                </s-button>
+              </s-stack>
+            </s-banner>
+          )}
+
+          {/* Product tiles */}
+          {expanded && itemCount > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+              gap: 12,
+            }}>
+              {board.items.map(id => (
+                <ProductTile
+                  key={id}
+                  wishlistId={id}
+                  boardId={board.id}
+                  productMap={productMap}
+                  productsLoading={productsLoading}
+                  customerId={customerId}
+                  config={config}
+                  onBoards={onBoards}
+                />
+              ))}
+            </div>
+          )}
+
+        </s-stack>
+      </div>
+    </div>
   );
 }
 
@@ -298,20 +429,19 @@ function Extension() {
   const customerGid = data?.selected?.[0]?.id ?? null;
   const customerId = gidToNumeric(customerGid);
 
-  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
+  const [status, setStatus] = useState('loading');
   const [loadError, setLoadError] = useState(null);
   const [config, setConfig] = useState(null);
   const [boards, setBoards] = useState([]);
   const [productMap, setProductMap] = useState(new Map());
+  const [productsLoading, setProductsLoading] = useState(false);
   const [emojis, setEmojis] = useState([]);
   const [colours, setColours] = useState([]);
 
-  // Create board form state
   const [showCreate, setShowCreate] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
   const [createError, setCreateError] = useState(null);
 
-  // Refresh product thumbnails whenever boards change
   const refreshProducts = useCallback(async (currentBoards) => {
     const ids = new Set();
     for (const board of currentBoards) {
@@ -320,8 +450,15 @@ function Extension() {
       }
     }
     if (!ids.size) return;
-    const map = await getProductsByIds([...ids]);
-    setProductMap(prev => new Map([...prev, ...map]));
+    setProductsLoading(true);
+    try {
+      const map = await getProductsByIds([...ids]);
+      setProductMap(prev => new Map([...prev, ...map]));
+    } catch {
+      // non-fatal — tiles will show "Unknown product"
+    } finally {
+      setProductsLoading(false);
+    }
   }, []);
 
   const handleBoards = useCallback((newBoards) => {
@@ -386,30 +523,45 @@ function Extension() {
 
   if (status === 'loading') {
     return (
-      <s-admin-block heading="Wishlist boards">
-        <s-spinner />
+      <s-admin-block heading="Wishlist">
+        <s-stack direction="block" gap="base" alignItems="center">
+          <s-spinner />
+          <s-text color="subdued">Loading wishlist…</s-text>
+        </s-stack>
       </s-admin-block>
     );
   }
 
   if (status === 'error') {
     return (
-      <s-admin-block heading="Wishlist boards">
-        <s-banner tone="critical">
-          <s-text>{loadError ?? 'Failed to load wishlist.'}</s-text>
-        </s-banner>
+      <s-admin-block heading="Wishlist">
+        <s-banner tone="critical" heading={loadError ?? 'Failed to load wishlist.'} />
       </s-admin-block>
     );
   }
 
+  const totalProducts = boards.reduce((n, b) => n + (b.items?.length ?? 0), 0);
   const canCreateMore = boards.length < BOARD_CONFIG.MAX_BOARDS;
 
   return (
-    <s-admin-block heading="Wishlist boards">
+    <s-admin-block heading="Wishlist">
       <s-stack direction="block" gap="base">
 
-        {!boards.length && (
-          <s-text type="subdued">This customer has no wishlist boards yet.</s-text>
+        {/* Summary */}
+        {boards.length > 0 && (
+          <s-text color="subdued">
+            {boards.length} board{boards.length !== 1 ? 's' : ''} · {totalProducts} product{totalProducts !== 1 ? 's' : ''} saved
+          </s-text>
+        )}
+
+        {/* Empty state */}
+        {boards.length === 0 && (
+          <s-box padding="large" background="subdued" borderRadius="base">
+            <s-stack direction="block" gap="small" alignItems="center">
+              <s-text type="strong">No wishlist yet</s-text>
+              <s-text color="subdued">This customer hasn't saved any products to their wishlist.</s-text>
+            </s-stack>
+          </s-box>
         )}
 
         {boards.map(board => (
@@ -419,6 +571,7 @@ function Extension() {
             emojis={emojis}
             colours={colours}
             productMap={productMap}
+            productsLoading={productsLoading}
             customerId={customerId}
             config={config}
             onBoards={handleBoards}
@@ -426,6 +579,7 @@ function Extension() {
           />
         ))}
 
+        {/* Create board */}
         {showCreate ? (
           <BoardForm
             emojis={emojis}
@@ -437,8 +591,14 @@ function Extension() {
           />
         ) : (
           canCreateMore && (
-            <s-button onPress={() => setShowCreate(true)}>+ Create board</s-button>
+            <s-button onClick={() => setShowCreate(true)}>
+              + New board
+            </s-button>
           )
+        )}
+
+        {!canCreateMore && (
+          <s-text color="subdued">Maximum of {BOARD_CONFIG.MAX_BOARDS} boards reached.</s-text>
         )}
 
       </s-stack>

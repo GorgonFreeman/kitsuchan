@@ -29,6 +29,7 @@ export function ColourSwatch({ value, size = 20, selected = false, style = {} })
         outline: selected ? '2px solid #333' : '2px solid transparent',
         outlineOffset: 2,
         cursor: 'pointer',
+        flexShrink: 0,
         ...style,
       }}
     />
