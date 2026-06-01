@@ -99,7 +99,8 @@ function WishlistStalenessCheck() {
 
   return (
     <s-admin-action heading="Wishlist health check">
-      <s-button slot="primaryAction" onClick={() => close()}>Done</s-button>
+      <s-button slot="primary-action" onClick={() => close()}>Close</s-button>
+      <s-button slot="secondary-actions" onClick={() => close()}>Cancel</s-button>
 
       <s-stack direction="block" gap="base">
 
