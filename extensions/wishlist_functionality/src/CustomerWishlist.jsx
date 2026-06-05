@@ -273,9 +273,19 @@ function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnl
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 function Extension() {
-  const { data } = shopify;
+  const { data, settings } = shopify;
   const customerGid = data?.selected?.[0]?.id ?? null;
   const customerId = gidToNumeric(customerGid);
+
+  if (!settings?.hmac_secret) {
+    return (
+      <s-admin-block heading="Wishlist">
+        <s-banner tone="warning" heading="Extension not configured">
+          <s-text>The Wishlist HMAC secret has not been set. Add it under the extension settings in the Partner Dashboard to enable this extension.</s-text>
+        </s-banner>
+      </s-admin-block>
+    );
+  }
 
   const [status, setStatus] = useState('loading');
   const [loadError, setLoadError] = useState(null);
