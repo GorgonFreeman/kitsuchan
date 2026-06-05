@@ -9,3 +9,7 @@ type = "ui_extension"
 [[extensions.targeting]]
 module = "./src/WishlistStalenessCheck.jsx"
 target = "admin.customer-details.action.render"
+
+[[extensions.targeting]]
+module = "./src/WishlistBulkStalenessCheck.jsx"
+target = "admin.customer-index.selection-action.render"
