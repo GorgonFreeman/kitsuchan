@@ -281,7 +281,7 @@ function Extension() {
     return (
       <s-admin-block heading="Wishlist">
         <s-banner tone="warning" heading="Extension not configured">
-          <s-text>The Wishlist HMAC secret has not been set. Add it under the extension settings in the Partner Dashboard to enable this extension.</s-text>
+          <s-text>Please contact the dev team for setup.</s-text>
         </s-banner>
       </s-admin-block>
     );
