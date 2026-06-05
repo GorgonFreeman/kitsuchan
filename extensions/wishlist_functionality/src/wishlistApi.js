@@ -1,5 +1,5 @@
-import { WISHLIST_HMAC_SECRET } from './secrets.js';
 import { OPS_URL } from './regionConfig.js';
+import { WISHLIST_HMAC_SECRET } from './secrets.js';
 
 async function hmacHex(secret, message) {
   const enc = new TextEncoder();
