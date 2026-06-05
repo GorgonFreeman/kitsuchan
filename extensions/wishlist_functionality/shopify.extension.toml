@@ -9,6 +9,13 @@ uid = "07cf4404-60d9-c513-8682-012c19ea4069f267361b"
 module = "./src/CustomerWishlist.jsx"
 target = "admin.customer-details.block.render"
 
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "hmac_secret"
+type = "single_line_text_field"
+name = "Wishlist HMAC secret"
+description = "Shared secret used to sign x-wf-token headers for the wishlist operations endpoint."
+
 
 # Valid extension targets:
 
