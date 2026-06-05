@@ -140,13 +140,13 @@ function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnl
   const selectedEmojiEntry = emojis.find(e => e.value === emoji) ?? { type: 'emoji', display: emoji };
 
   return (
-    <div style={{ border: '1px solid #e1e3e5', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-      <div style={{ height: 4, background: board.colour ?? '#FF6B6B' }} />
-      <div style={{ padding: 16 }}>
-        <s-stack direction="block" gap="base">
+    <s-stack direction="block" gap="base">
 
-          {/* Header row */}
-          <s-stack direction="inline" gap="small" alignItems="center">
+      {/* Colour accent bar */}
+      <div style={{ height: 3, borderRadius: 2, background: board.colour ?? '#FF6B6B' }} />
+
+      {/* Header row */}
+      <s-stack direction="inline" gap="small" alignItems="center">
             <div style={{
               width: 40, height: 40, borderRadius: 8, flexShrink: 0,
               background: `${(board.colour ?? '#FF6B6B')}22`,
@@ -266,9 +266,7 @@ function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnl
             </s-banner>
           )}
 
-        </s-stack>
-      </div>
-    </div>
+    </s-stack>
   );
 }
 
@@ -371,17 +369,19 @@ function Extension() {
           <s-text color="subdued">This customer has no wishlist boards yet.</s-text>
         )}
 
-        {boards.map(board => (
-          <BoardCard
-            key={board.id}
-            board={board}
-            emojis={emojis}
-            colours={colours}
-            customerId={customerId}
-            config={config}
-            onBoards={handleBoards}
-            isOnly={boards.length === 1}
-          />
+        {boards.map((board, idx) => (
+          <s-stack key={board.id} direction="block" gap="base">
+            {idx > 0 && <s-divider />}
+            <BoardCard
+              board={board}
+              emojis={emojis}
+              colours={colours}
+              customerId={customerId}
+              config={config}
+              onBoards={handleBoards}
+              isOnly={boards.length === 1}
+            />
+          </s-stack>
         ))}
 
         {showCreate ? (
