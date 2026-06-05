@@ -1,14 +1,20 @@
 api_version = "2026-04"
-uid = "a790f479-2fc3-ac0c-ddee-72de0801731bdfcb6115"
 
 [[extensions]]
 name = "t:name"
 handle = "wishlist-stale-checker"
 type = "ui_extension"
+uid = "a790f479-2fc3-ac0c-ddee-72de0801731bdfcb6115"
 
 [[extensions.targeting]]
 module = "./src/WishlistStalenessCheck.jsx"
 target = "admin.customer-details.action.render"
+
+[[extensions]]
+name = "t:bulk_name"
+handle = "wishlist-bulk-checker"
+uid = "3bc041d4-36be-2772-58cd-8cc2e7a196d9ccf375ca"
+type = "ui_extension"
 
 [[extensions.targeting]]
 module = "./src/WishlistBulkStalenessCheck.jsx"
