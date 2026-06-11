@@ -2,7 +2,7 @@
 
 client_id = "ab540b86ceb52c60bd693d49ad5a3520"
 name = "kitsuchan"
-application_url = "https://kitsuchan-446695340286.australia-southeast1.run.app/"
+application_url = 'https://kitsuchan-446695340286.australia-southeast1.run.app/'
 embedded = true
 handle = "kitsuchan"
 
@@ -22,7 +22,7 @@ scopes = "read_metaobjects,read_products,read_themes,write_products,write_themes
 
 [auth]
 redirect_urls = [
-  "https://kitsuchan-446695340286.australia-southeast1.run.app/auth/callback",
+  'https://kitsuchan-446695340286.australia-southeast1.run.app/auth/callback',
 ]
 
 [pos]
