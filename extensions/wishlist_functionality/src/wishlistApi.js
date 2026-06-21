@@ -1,5 +1,7 @@
 import { OPS_URL } from './regionConfig.js';
 
+const WISHLIST_HMAC_SECRET = 'WhiteFxoxoE4g$J9hR7pK2nD8wQ1fT';
+
 async function hmacHex(secret, message) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -14,9 +16,7 @@ async function hmacHex(secret, message) {
 }
 
 export async function callOperation({ customerId, config, operation, ...payload }) {
-  const secret = shopify.settings.hmac_secret;
-  if (!secret) throw new Error('Wishlist HMAC secret is not configured. Set it in the extension settings.');
-  const token = await hmacHex(secret, customerId);
+  const token = await hmacHex(WISHLIST_HMAC_SECRET, customerId);
   const res = await fetch(OPS_URL, {
     method: 'POST',
     headers: {
