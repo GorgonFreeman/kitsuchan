@@ -187,31 +187,6 @@ function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnl
                   onChange={e => setName(e.target.value)}
                 />
 
-                {emojis.length > 0 && (
-                  <s-stack direction="block" gap="small">
-                    <s-text color="subdued">Emoji</s-text>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {emojis.map(entry => (
-                        <s-clickable
-                          key={entry.value}
-                          onClick={() => setEmoji(entry.value)}
-                          padding="base"
-                          borderRadius="base"
-                          background={emoji === entry.value ? 'base' : undefined}
-                        >
-                          <div style={{
-                            outline: emoji === entry.value ? `2px solid ${colour}` : '2px solid transparent',
-                            borderRadius: 6,
-                            padding: 2,
-                          }}>
-                            <EmojiSwatch entry={entry} size={22} />
-                          </div>
-                        </s-clickable>
-                      ))}
-                    </div>
-                  </s-stack>
-                )}
-
                 {colours.length > 0 && (
                   <s-stack direction="block" gap="small">
                     <s-text color="subdued">Colour</s-text>
