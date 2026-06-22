@@ -19,3 +19,13 @@ uid = "4da9a59c-5450-4961-b5a7-17f98515203f"
 [[extensions.targeting]]
 module = "./src/ActionExtension.jsx"
 target = "admin.product-index.selection-action.render"
+
+[[extensions]]
+name = "t:name"
+handle = "pvx-status-block"
+uid = "5920e4b9-b390-268d-c2a8-9b35786c41630ae13871"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/ProductStatusBlock.jsx"
+target = "admin.product-details.block.render"

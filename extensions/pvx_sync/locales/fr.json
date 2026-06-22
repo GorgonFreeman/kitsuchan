@@ -13,5 +13,7 @@
   "success-bulk": "{{count}} produits synchronisés avec succès.",
   "error": "Échec de la synchronisation : {{message}}",
   "no-product": "Aucun produit en contexte.",
-  "no-products": "Aucun produit sélectionné."
+  "no-products": "Aucun produit sélectionné.",
+  "status-block-heading": "Statut Peoplevox",
+  "status-block-placeholder": "Placeholder: Peoplevox hold status checker <3"
 }
