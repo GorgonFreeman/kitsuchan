@@ -38,3 +38,12 @@ type = "ui_extension"
 [[extensions.targeting]]
 module = "./src/InventorySyncAction.jsx"
 target = "admin.product-details.action.render"
+
+[[extensions]]
+name = "t:inventory-sync-action-name"
+handle = "pvx-sync-inventory-index"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/InventorySyncAction.jsx"
+target = "admin.product-variant-index.selection-action.render"
