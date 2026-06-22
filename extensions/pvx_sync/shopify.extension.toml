@@ -29,3 +29,12 @@ type = "ui_extension"
 [[extensions.targeting]]
 module = "./src/ProductStatusBlock.jsx"
 target = "admin.product-details.block.render"
+
+[[extensions]]
+name = "t:inventory-sync-action-name"
+handle = "pvx-sync-inventory"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/InventorySyncAction.jsx"
+target = "admin.product-details.action.render"

@@ -15,5 +15,6 @@
   "no-product": "No product in context.",
   "no-products": "No products selected.",
   "status-block-heading": "Peoplevox Status",
-  "status-block-placeholder": "Placeholder: Peoplevox hold status checker <3"
+  "status-block-placeholder": "Placeholder: Peoplevox hold status checker <3",
+  "inventory-sync-action-name": "WIP: Sync inventory"
 }
