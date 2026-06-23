@@ -16,7 +16,7 @@ import {
   editBoard as apiEditBoard,
   deleteBoard as apiDeleteBoard,
 } from './wishlistApi.js';
-import { configForShop } from './regionConfig.js';
+import { configForShop, boardPreviewUrl } from './regionConfig.js';
 
 export default async () => {
   render(<Extension />, document.body);
@@ -163,6 +163,13 @@ function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnl
               </s-text>
             </div>
 
+            <s-button
+              href={boardPreviewUrl(config, customerId, board.id)}
+              target="_blank"
+            >
+              Preview
+            </s-button>
+
             <s-button variant="primary" onClick={editing ? () => { setEditing(false); setError(null); } : openEdit}>
               {editing ? 'Close' : 'Edit board'}
             </s-button>
@@ -186,24 +193,6 @@ function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnl
                   maxLength={BOARD_CONFIG.MAX_NAME_LENGTH}
                   onChange={e => setName(e.target.value)}
                 />
-
-                {colours.length > 0 && (
-                  <s-stack direction="block" gap="small">
-                    <s-text color="subdued">Colour</s-text>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {colours.map(c => (
-                        <s-clickable key={c.value} onClick={() => setColour(c.colour)}>
-                          <div style={{
-                            width: 28, height: 28, borderRadius: '50%',
-                            background: c.colour,
-                            outline: colour === c.colour ? '2px solid #333' : '2px solid transparent',
-                            outlineOffset: 2,
-                          }} />
-                        </s-clickable>
-                      ))}
-                    </div>
-                  </s-stack>
-                )}
 
                 <s-divider />
 
