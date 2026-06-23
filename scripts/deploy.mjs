@@ -25,7 +25,7 @@
  * URLs to the dev tunnel; this flow restores them to production on release.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -102,6 +102,8 @@ if (publicUrl !== hostForDeploy) {
 
 writeShopifyAppToml(publicUrl);
 console.log('shopifyAppToml updated:', `${ publicUrl }/`);
+
+installDependencies();
 
 const shopifyRes = spawnSync(
   'npm',
@@ -255,6 +257,29 @@ function formatGcloudEnvVars(pairs) {
     delim = '#'.repeat(n);
   }
   return `^${ delim }^${ join(delim) }`;
+}
+
+/** Shopify CLI type-checks UI extensions against @shopify/ui-extensions at deploy time. */
+function installDependencies() {
+  console.log('Installing npm dependencies for shopify app deploy…');
+  const rootInstall = spawnSync('npm', [ 'ci' ], { stdio: 'inherit', cwd: root, shell: false });
+  if (rootInstall.status !== 0) {
+    process.exit(rootInstall.status ?? 1);
+  }
+
+  const extensionsDir = join(root, 'extensions');
+  if (!existsSync(extensionsDir)) return;
+
+  for (const entry of readdirSync(extensionsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const extRoot = join(extensionsDir, entry.name);
+    if (!existsSync(join(extRoot, 'package-lock.json'))) continue;
+    console.log('Installing extension dependencies:', entry.name);
+    const extInstall = spawnSync('npm', [ 'ci' ], { stdio: 'inherit', cwd: extRoot, shell: false });
+    if (extInstall.status !== 0) {
+      process.exit(extInstall.status ?? 1);
+    }
+  }
 }
 
 function writeShopifyAppToml(publicUrl) {

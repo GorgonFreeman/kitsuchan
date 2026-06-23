@@ -33,6 +33,7 @@ target = "admin.product-details.block.render"
 [[extensions]]
 name = "t:inventory-sync-action-name"
 handle = "pvx-sync-inventory"
+uid = "53a12559-e746-b0b6-0a05-0c014afc4cc66386e1d2"
 type = "ui_extension"
 
 [[extensions.targeting]]
@@ -42,6 +43,7 @@ target = "admin.product-details.action.render"
 [[extensions]]
 name = "t:inventory-sync-action-name"
 handle = "pvx-sync-inventory-index"
+uid = "8f082bee-046d-7ad0-b440-edbc6f277e372e577b21"
 type = "ui_extension"
 
 [[extensions.targeting]]
