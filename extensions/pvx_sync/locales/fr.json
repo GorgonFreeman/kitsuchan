@@ -16,5 +16,8 @@
   "no-products": "Aucun produit sélectionné.",
   "status-block-heading": "Statut Peoplevox",
   "status-block-placeholder": "Placeholder: Peoplevox hold status checker <3",
-  "inventory-sync-action-name": "WIP: Sync inventory"
+  "inventory-sync-action-name": "WIP: Sync inventory",
+  "inventory-sync-description": "Sync inventory for this product.",
+  "inventory-sync-description-bulk": "Sync inventory for {{count}} selected products.",
+  "inventory-sync-product-id": "Product ID: {{id}}"
 }
