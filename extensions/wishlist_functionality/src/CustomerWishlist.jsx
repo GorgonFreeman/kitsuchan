@@ -16,7 +16,7 @@ import {
   editBoard as apiEditBoard,
   deleteBoard as apiDeleteBoard,
 } from './wishlistApi.js';
-import { configForShop } from './regionConfig.js';
+import { configForShop, boardPreviewUrl } from './regionConfig.js';
 
 export default async () => {
   render(<Extension />, document.body);
@@ -162,6 +162,13 @@ function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnl
                 {itemCount === 0 ? 'Empty' : `${itemCount} product${itemCount !== 1 ? 's' : ''}`}
               </s-text>
             </div>
+
+            <s-button
+              href={boardPreviewUrl(config, customerId, board.id)}
+              target="_blank"
+            >
+              Preview
+            </s-button>
 
             <s-button variant="primary" onClick={editing ? () => { setEditing(false); setError(null); } : openEdit}>
               {editing ? 'Close' : 'Edit board'}
