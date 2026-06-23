@@ -187,24 +187,6 @@ function BoardCard({ board, emojis, colours, customerId, config, onBoards, isOnl
                   onChange={e => setName(e.target.value)}
                 />
 
-                {colours.length > 0 && (
-                  <s-stack direction="block" gap="small">
-                    <s-text color="subdued">Colour</s-text>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {colours.map(c => (
-                        <s-clickable key={c.value} onClick={() => setColour(c.colour)}>
-                          <div style={{
-                            width: 28, height: 28, borderRadius: '50%',
-                            background: c.colour,
-                            outline: colour === c.colour ? '2px solid #333' : '2px solid transparent',
-                            outlineOffset: 2,
-                          }} />
-                        </s-clickable>
-                      ))}
-                    </div>
-                  </s-stack>
-                )}
-
                 <s-divider />
 
                 <s-stack direction="inline" gap="small" alignItems="center">
