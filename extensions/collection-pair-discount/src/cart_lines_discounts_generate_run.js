@@ -29,8 +29,7 @@ export function cartLinesDiscountsGenerateRun(input) {
     return { operations: [] };
   }
 
-  const discountMessage = input.discount.title ?? 'Collection pair bundle';
-
+  const discountMessage = config.discountTitle?.trim() || null;
 
   const units = expandEligibleUnits(input.cart.lines);
   const pairs = pairUnits(units, config.itemCount);
@@ -95,7 +94,7 @@ export function cartLinesDiscountsGenerateRun(input) {
 
 /**
   * @param {unknown} jsonValue
-  * @returns {{ collectionIds: string[], itemCount: number, bundlePriceCents: number } | null}
+  * @returns {{ collectionIds: string[], itemCount: number, bundlePriceCents: number, discountTitle: string } | null}
   */
 function parseConfig(jsonValue) {
   if (!jsonValue || typeof jsonValue !== 'object') {
@@ -127,6 +126,7 @@ function parseConfig(jsonValue) {
     collectionIds,
     itemCount: Math.floor(itemCount),
     bundlePriceCents,
+    discountTitle: typeof config.discountTitle === 'string' ? config.discountTitle : '',
   };
 }
 

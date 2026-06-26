@@ -142,6 +142,8 @@ function useExtensionData() {
       throw new Error('Bundle price must be greater than zero');
     }
 
+    const discountTitle = await getDiscountTitle(data?.id, query);
+
     await applyMetafieldChange({
       type: 'updateMetafield',
       namespace: '$app',
@@ -150,6 +152,7 @@ function useExtensionData() {
         collectionIds: [ collection.id ],
         itemCount: 2,
         bundlePrice: bundlePrice.toFixed(2),
+        discountTitle,
       }),
       valueType: 'json',
     });
@@ -215,6 +218,33 @@ function parseMetafield(value) {
       collectionId: '',
     };
   }
+}
+
+async function getDiscountTitle(discountNodeId, adminApiQuery) {
+  if (!discountNodeId) {
+    return '';
+  }
+
+  const gql = `#graphql
+    query DiscountTitle($id: ID!) {
+      discountNode(id: $id) {
+        discount {
+          ... on DiscountAutomaticApp {
+            title
+          }
+          ... on DiscountCodeApp {
+            title
+          }
+        }
+      }
+    }
+  `;
+  const result = await adminApiQuery(
+    gql,
+    { variables: { id: discountNodeId } },
+  );
+
+  return result?.data?.discountNode?.discount?.title ?? '';
 }
 
 async function getCollection(collectionGid, adminApiQuery) {

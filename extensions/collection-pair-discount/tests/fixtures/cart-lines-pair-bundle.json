@@ -49,7 +49,8 @@
           "jsonValue": {
             "collectionIds": ["gid://shopify/Collection/1"],
             "itemCount": 2,
-            "bundlePrice": "12.00"
+            "bundlePrice": "12.00",
+            "discountTitle": "Summer tee bundle"
           }
         }
       }
@@ -63,7 +64,7 @@
           "productDiscountsAdd": {
             "candidates": [
               {
-                "message": "Collection pair bundle",
+                "message": "Summer tee bundle",
                 "targets": [
                   {
                     "cartLine": {
@@ -80,7 +81,7 @@
                 }
               },
               {
-                "message": "Collection pair bundle",
+                "message": "Summer tee bundle",
                 "targets": [
                   {
                     "cartLine": {
