@@ -1,6 +1,5 @@
 import {
   DiscountClass,
-  DiscountApplicationTarget,
   ProductDiscountSelectionStrategy,
 } from '../generated/api';
 
@@ -9,7 +8,7 @@ import {
   * @typedef {import("../generated/api").CartInput} RunInput
   * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
   * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, pricingMode: 'single' | 'markets', markets: Record<string, { enabled?: boolean, bundlePrice?: unknown }>, bundlePrice: unknown }} ParsedConfig
-  * @typedef {{ lineId: string, unitPriceCents: number, existingDiscountCents: number }} BundleUnit
+  * @typedef {{ lineId: string, unitPriceCents: number }} BundleUnit
   */
 
 const DEFAULT_ITEM_COUNT = 2;
@@ -41,7 +40,7 @@ export function cartLinesDiscountsGenerateRun(input) {
   const discountMessage = config.discountTitle?.trim() || null;
 
   const units = expandEligibleUnits(input.cart.lines);
-  const pairs = pairUnitsWithRePair(units, config.itemCount, bundlePriceCents);
+  const pairs = pairUnits(units, config.itemCount);
   if (!pairs.length) {
     return { operations: [] };
   }
@@ -51,14 +50,10 @@ export function cartLinesDiscountsGenerateRun(input) {
 
   for (const pair of pairs) {
     const unitPricesCents = pair.map((unit) => unit.unitPriceCents);
-    const subtotalCents = unitPricesCents.reduce((sum, price) => sum + price, 0);
-    const existingSavingsCents = pair.reduce(
-      (sum, unit) => sum + unit.existingDiscountCents,
-      0,
+    const unitDiscountsCents = proportionalDiscountCents(
+      unitPricesCents,
+      bundlePriceCents,
     );
-    const bundleSavingsCents = subtotalCents - bundlePriceCents;
-    const remainingGapCents = bundleSavingsCents - existingSavingsCents;
-    const unitDiscountsCents = allocateRemainingGapCents(pair, remainingGapCents);
 
     pair.forEach((unit, index) => {
       const discountCents = unitDiscountsCents[ index ];
@@ -221,18 +216,19 @@ function expandEligibleUnits(lines) {
       continue;
     }
 
+    if (lineHasDiscount(line)) {
+      continue;
+    }
+
     const unitPriceCents = moneyToCents(line.cost.amountPerQuantity.amount);
     if (unitPriceCents == null || unitPriceCents <= 0) {
       continue;
     }
 
-    const existingDiscountCents = productDiscountPerUnitCents(line);
-
     for (let i = 0; i < line.quantity; i += 1) {
       units.push({
         lineId: line.id,
         unitPriceCents,
-        existingDiscountCents,
       });
     }
   }
@@ -242,130 +238,51 @@ function expandEligibleUnits(lines) {
 
 /**
   * @param {RunInput['cart']['lines'][number]} line
-  * @returns {number}
+  * @returns {boolean}
   */
-function productDiscountPerUnitCents(line) {
+function lineHasDiscount(line) {
   const allocations = line.discountAllocations ?? [];
-  let totalCents = 0;
 
   for (const allocation of allocations) {
-    if (allocation.discountApplication?.targetType !== DiscountApplicationTarget.LineItem) {
-      continue;
-    }
-
     const cents = moneyToCents(allocation.discountedAmount?.amount);
     if (cents != null && cents > 0) {
-      totalCents += cents;
+      return true;
     }
   }
 
-  const quantity = line.quantity ?? 1;
-  if (quantity <= 0) {
-    return 0;
-  }
-
-  return Math.round(totalCents / quantity);
+  return false;
 }
 
 /**
   * @param {BundleUnit[]} units
   * @param {number} itemCount
-  * @param {number} bundlePriceCents
   * @returns {BundleUnit[][]}
   */
-function pairUnitsWithRePair(units, itemCount, bundlePriceCents) {
+function pairUnits(units, itemCount) {
   /** @type {BundleUnit[][]} */
   const pairs = [];
-  let index = 0;
 
-  while (index + itemCount <= units.length) {
-    const candidate = units.slice(index, index + itemCount);
-    const subtotalCents = candidate.reduce((sum, unit) => sum + unit.unitPriceCents, 0);
-    const existingSavingsCents = candidate.reduce(
-      (sum, unit) => sum + unit.existingDiscountCents,
-      0,
-    );
-    const bundleSavingsCents = subtotalCents - bundlePriceCents;
-
-    if (bundleSavingsCents > existingSavingsCents) {
-      pairs.push(candidate);
-      index += itemCount;
-      continue;
-    }
-
-    index += 1;
+  for (let i = 0; i + itemCount <= units.length; i += itemCount) {
+    pairs.push(units.slice(i, i + itemCount));
   }
 
   return pairs;
 }
 
 /**
-  * @param {BundleUnit[]} units
-  * @param {number} remainingGapCents
-  * @returns {number[]}
-  */
-function allocateRemainingGapCents(units, remainingGapCents) {
-  const result = units.map(() => 0);
-  if (remainingGapCents <= 0) {
-    return result;
-  }
-
-  /** @type {number[]} */
-  let eligible = units.map((_, unitIndex) => unitIndex);
-  let unallocatedCents = remainingGapCents;
-
-  while (unallocatedCents > 0 && eligible.length > 0) {
-    const eligiblePricesCents = eligible.map((unitIndex) => units[ unitIndex ].unitPriceCents);
-    const sharesCents = proportionalSplitCents(eligiblePricesCents, unallocatedCents);
-    /** @type {number[]} */
-    const nextEligible = [];
-    let allocatedThisPassCents = 0;
-
-    eligible.forEach((unitIndex, shareIndex) => {
-      const shareCents = sharesCents[ shareIndex ];
-      if (shareCents > units[ unitIndex ].existingDiscountCents) {
-        result[ unitIndex ] += shareCents;
-        allocatedThisPassCents += shareCents;
-        nextEligible.push(unitIndex);
-        return;
-      }
-    });
-
-    if (allocatedThisPassCents === 0) {
-      const winners = eligible.filter(
-        (unitIndex) => unallocatedCents > units[ unitIndex ].existingDiscountCents,
-      );
-
-      if (!winners.length) {
-        break;
-      }
-
-      winners.sort((leftIndex, rightIndex) => (
-        units[ leftIndex ].existingDiscountCents - units[ rightIndex ].existingDiscountCents
-        || units[ rightIndex ].unitPriceCents - units[ leftIndex ].unitPriceCents
-      ));
-
-      const targetIndex = winners[ 0 ];
-      result[ targetIndex ] += unallocatedCents;
-      break;
-    }
-
-    unallocatedCents -= allocatedThisPassCents;
-    eligible = nextEligible;
-  }
-
-  return result;
-}
-
-/**
   * @param {number[]} unitPricesCents
-  * @param {number} totalDiscountCents
+  * @param {number} bundlePriceCents
   * @returns {number[]}
   */
-function proportionalSplitCents(unitPricesCents, totalDiscountCents) {
+function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
   const subtotalCents = unitPricesCents.reduce((sum, price) => sum + price, 0);
+  const totalDiscountCents = Math.max(0, subtotalCents - bundlePriceCents);
 
-  if (totalDiscountCents === 0 || subtotalCents === 0) {
+  if (totalDiscountCents === 0) {
+    return unitPricesCents.map(() => 0);
+  }
+
+  if (subtotalCents === 0) {
     return unitPricesCents.map(() => 0);
   }
 

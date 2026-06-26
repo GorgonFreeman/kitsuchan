@@ -70,31 +70,7 @@
       "collectionIds": ["gid://shopify/Collection/1"]
     },
     "output": {
-      "operations": [
-        {
-          "productDiscountsAdd": {
-            "candidates": [
-              {
-                "targets": [
-                  {
-                    "cartLine": {
-                      "id": "gid://shopify/CartLine/20",
-                      "quantity": 1
-                    }
-                  }
-                ],
-                "value": {
-                  "fixedAmount": {
-                    "amount": "3.00",
-                    "appliesToEachItem": false
-                  }
-                }
-              }
-            ],
-            "selectionStrategy": "ALL"
-          }
-        }
-      ]
+      "operations": []
     }
   }
 }
