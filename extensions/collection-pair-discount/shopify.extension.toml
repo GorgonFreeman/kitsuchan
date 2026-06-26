@@ -27,3 +27,4 @@ key = "function-configuration"
 
 [extensions.ui]
 handle = "collection-pair-discount-settings"
+enable_create = true
