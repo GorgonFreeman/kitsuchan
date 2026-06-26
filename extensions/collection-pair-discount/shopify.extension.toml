@@ -1,0 +1,29 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "t:name"
+handle = "collection-pair-discount"
+type = "function"
+uid = "24de50f8-daf8-0049-63cd-899ba3dd2f27d42be451"
+description = "t:description"
+
+  [[extensions.targeting]]
+  target = "cart.lines.discounts.generate.run"
+  input_query = "src/cart_lines_discounts_generate_run.graphql"
+  export = "cart-lines-discounts-generate-run"
+
+  [[extensions.targeting]]
+  target = "cart.delivery-options.discounts.generate.run"
+  input_query = "src/cart_delivery_options_discounts_generate_run.graphql"
+  export = "cart-delivery-options-discounts-generate-run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+[extensions.input.variables]
+namespace = "$app"
+key = "function-configuration"
+
+[extensions.ui]
+handle = "collection-pair-discount-settings"

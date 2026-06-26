@@ -1,0 +1,12 @@
+{
+  "name": "Collection pair bundle settings",
+  "description": "Configure collection pair bundle discounts",
+  "title": "Collection pair bundle",
+  "helpText": "Choose a collection and the fixed total price for any two eligible products.",
+  "loading": "Loading...",
+  "bundlePriceLabel": "Fixed bundle price",
+  "collectionButtonLabel": "Choose collection",
+  "noCollection": "No collection selected yet.",
+  "itemCountNote": "Customers get every pair of eligible products from this collection for the fixed price. Discount is split proportionally by each product's price.",
+  "error": "Unable to save bundle settings. Please try again."
+}

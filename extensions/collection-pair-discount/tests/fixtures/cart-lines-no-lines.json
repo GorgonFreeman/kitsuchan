@@ -1,0 +1,27 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": []
+      },
+      "discount": {
+        "discountClasses": ["PRODUCT"],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": ["gid://shopify/Collection/1"],
+            "itemCount": 2,
+            "bundlePrice": "12.00"
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": ["gid://shopify/Collection/1"]
+    },
+    "output": {
+      "operations": []
+    }
+  }
+}

@@ -18,7 +18,13 @@ topics = ["app/uninstalled"]
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_metaobjects,read_products,read_themes,write_products,write_themes,read_customers"
+scopes = "read_metaobjects,read_products,read_themes,write_products,write_themes,read_customers,write_discounts,read_discounts,read_collections"
+
+[discount.metafields.app.function-configuration]
+type = "json"
+name = "Bundle configuration"
+access.admin = "merchant_read_write"
+access.storefront = "none"
 
 [auth]
 redirect_urls = [
