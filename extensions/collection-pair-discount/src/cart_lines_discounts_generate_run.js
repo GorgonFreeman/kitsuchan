@@ -29,6 +29,9 @@ export function cartLinesDiscountsGenerateRun(input) {
     return { operations: [] };
   }
 
+  const discountMessage = input.discount.title ?? 'Collection pair bundle';
+
+
   const units = expandEligibleUnits(input.cart.lines);
   const pairs = pairUnits(units, config.itemCount);
   if (!pairs.length) {
@@ -57,7 +60,7 @@ export function cartLinesDiscountsGenerateRun(input) {
   }
 
   const candidates = [ ...lineBuckets.entries() ].map(([ lineId, bucket ]) => ({
-    message: 'Collection pair bundle',
+    ...(discountMessage ? { message: discountMessage } : {}),
     targets: [
       {
         cartLine: {
