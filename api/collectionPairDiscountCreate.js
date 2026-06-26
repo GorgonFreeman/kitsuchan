@@ -2,8 +2,8 @@
 
 import { shopify } from '../shopify-server.js';
 import {
-  serializeMarketsConfig,
-  validateMarketRows,
+  buildFunctionConfiguration,
+  validatePricingConfig,
 } from '../utils/collectionPairDiscountConfig.js';
 import {
   CONFIG_KEY,
@@ -31,7 +31,7 @@ const CREATE_MUTATION = `#graphql
 
 function normalizeMarketRows(body) {
   if (!Array.isArray(body?.marketRows)) {
-    return null;
+    return [];
   }
 
   return body.marketRows.map((row) => ({
@@ -55,6 +55,7 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
   const startsAt = typeof body?.startsAt === 'string' ? body.startsAt.trim() : '';
   const endsAt = typeof body?.endsAt === 'string' && body.endsAt.trim() ? body.endsAt.trim() : null;
   const marketRows = normalizeMarketRows(body);
+  const bundlePrice = body?.bundlePrice;
 
   if (!title) {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -68,20 +69,20 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
     return;
   }
 
-  if (!marketRows?.length) {
+  const pricingError = validatePricingConfig(marketRows, bundlePrice);
+  if (pricingError) {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ ok: false, error: 'marketRows is required' }));
-    return;
-  }
-
-  const marketError = validateMarketRows(marketRows);
-  if (marketError) {
-    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ ok: false, error: marketError }));
+    res.end(JSON.stringify({ ok: false, error: pricingError }));
     return;
   }
 
   const effectiveStartsAt = startsAt || new Date().toISOString();
+  const config = buildFunctionConfiguration({
+    collectionIds: [ collectionId ],
+    discountTitle: title,
+    marketRows,
+    bundlePrice,
+  });
 
   try {
     const client = new shopify.clients.Graphql({ session });
@@ -103,12 +104,7 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
               namespace: CONFIG_NAMESPACE,
               key: CONFIG_KEY,
               type: 'json',
-              value: JSON.stringify({
-                collectionIds: [ collectionId ],
-                itemCount: 2,
-                discountTitle: title,
-                markets: serializeMarketsConfig(marketRows),
-              }),
+              value: JSON.stringify(config),
             },
           ],
         },

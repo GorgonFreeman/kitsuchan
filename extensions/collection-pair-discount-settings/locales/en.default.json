@@ -5,6 +5,8 @@
   "helpText": "Choose a collection and set a fixed bundle price per market.",
   "loading": "Loading...",
   "marketsHeading": "Markets",
+  "bundlePriceHeading": "Bundle price",
+  "bundlePriceLabel": "Fixed bundle price",
   "marketPriceLabel": "Bundle price",
   "noMarkets": "No markets found for this store.",
   "collectionButtonLabel": "Choose collection",

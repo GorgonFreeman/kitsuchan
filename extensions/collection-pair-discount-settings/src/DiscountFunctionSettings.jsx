@@ -34,18 +34,22 @@ function MarketPriceRow({ row, i18n, onEnabledChange, onPriceChange }) {
 function App() {
   const {
     applyExtensionMetafieldChange,
+    bundlePrice,
     collection,
     ensureProductDiscountClass,
     i18n,
+    initialBundlePrice,
     initialCollection,
     initialMarketRows,
     loading,
     marketRows,
+    onBundlePriceChange,
     onMarketEnabledChange,
     onMarketPriceChange,
     onSelectCollection,
     removeCollection,
     resetForm,
+    useSinglePrice,
   } = useExtensionData();
 
   const [ error, setError ] = useState();
@@ -94,8 +98,18 @@ function App() {
               <s-paragraph color="subdued">{ i18n.translate('noCollection') }</s-paragraph>
             ) }
           </s-stack>
-          <s-heading>{ i18n.translate('marketsHeading') }</s-heading>
-          { marketRows.length ? marketRows.map((row) => (
+          <s-heading>{ useSinglePrice ? i18n.translate('bundlePriceHeading') : i18n.translate('marketsHeading') }</s-heading>
+          { useSinglePrice ? (
+            <s-number-field
+              label={ i18n.translate('bundlePriceLabel') }
+              name="bundlePrice"
+              value={ String(bundlePrice) }
+              defaultValue={ String(initialBundlePrice) }
+              min={ 0 }
+              step={ 0.01 }
+              onChange={(event) => onBundlePriceChange(event.currentTarget.value)}
+            />
+          ) : marketRows.map((row) => (
             <MarketPriceRow
               key={ row.marketId }
               row={ row }
@@ -103,9 +117,7 @@ function App() {
               onEnabledChange={ onMarketEnabledChange }
               onPriceChange={ onMarketPriceChange }
             />
-          )) : (
-            <s-paragraph color="subdued">{ i18n.translate('noMarkets') }</s-paragraph>
-          ) }
+          )) }
           <s-paragraph color="subdued">{ i18n.translate('itemCountNote') }</s-paragraph>
         </s-stack>
       </s-section>
@@ -127,6 +139,9 @@ function useExtensionData() {
   const [ initialCollection, setInitialCollection ] = useState(null);
   const [ marketRows, setMarketRows ] = useState([]);
   const [ initialMarketRows, setInitialMarketRows ] = useState([]);
+  const [ bundlePrice, setBundlePrice ] = useState(0);
+  const [ initialBundlePrice, setInitialBundlePrice ] = useState(0);
+  const [ useSinglePrice, setUseSinglePrice ] = useState(false);
   const [ loading, setLoading ] = useState(true);
 
   useEffect(() => {
@@ -148,8 +163,14 @@ function useExtensionData() {
         metafieldConfig.markets,
         metafieldConfig.legacyBundlePrice,
       );
+      const singlePrice = rows.length === 0;
+      const singlePriceAmount = singlePrice ? Number(metafieldConfig.legacyBundlePrice) || 0 : 0;
+
+      setUseSinglePrice(singlePrice);
       setMarketRows(rows);
       setInitialMarketRows(rows);
+      setBundlePrice(singlePriceAmount);
+      setInitialBundlePrice(singlePriceAmount);
       setLoading(false);
     };
 
@@ -180,38 +201,45 @@ function useExtensionData() {
     )));
   };
 
+  const onBundlePriceChange = (value) => {
+    setBundlePrice(Number(value));
+  };
+
   async function applyExtensionMetafieldChange() {
     if (!collection?.id) {
       throw new Error('Collection is required');
     }
 
-    const validationError = validateMarketRows(marketRows);
+    const validationError = validatePricingConfig(marketRows, bundlePrice);
     if (validationError) {
       throw new Error(validationError);
     }
 
     const discountTitle = await getDiscountTitle(data?.id, query);
+    const config = buildFunctionConfiguration({
+      collectionIds: [ collection.id ],
+      discountTitle,
+      marketRows,
+      bundlePrice,
+    });
 
     await applyMetafieldChange({
       type: 'updateMetafield',
       namespace: '$app',
       key: 'function-configuration',
-      value: JSON.stringify({
-        collectionIds: [ collection.id ],
-        itemCount: 2,
-        discountTitle,
-        markets: serializeMarketsConfig(marketRows),
-      }),
+      value: JSON.stringify(config),
       valueType: 'json',
     });
 
     setInitialCollection(collection);
     setInitialMarketRows(marketRows);
+    setInitialBundlePrice(bundlePrice);
   }
 
   const resetForm = () => {
     setCollection(initialCollection);
     setMarketRows(initialMarketRows);
+    setBundlePrice(initialBundlePrice);
   };
 
   const onSelectCollection = async () => {
@@ -235,18 +263,22 @@ function useExtensionData() {
 
   return {
     applyExtensionMetafieldChange,
+    bundlePrice,
     collection,
     ensureProductDiscountClass,
     i18n,
+    initialBundlePrice,
     initialCollection,
     initialMarketRows,
     loading,
     marketRows,
+    onBundlePriceChange,
     onMarketEnabledChange,
     onMarketPriceChange,
     onSelectCollection,
     removeCollection,
     resetForm,
+    useSinglePrice,
   };
 }
 
@@ -317,6 +349,46 @@ function serializeMarketsConfig(marketRows) {
   }
 
   return markets;
+}
+
+function validatePricingConfig(marketRows, bundlePrice) {
+  if (!marketRows.length) {
+    const amount = typeof bundlePrice === 'number'
+      ? bundlePrice
+      : parseFloat(String(bundlePrice ?? ''));
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return 'Bundle price must be greater than zero';
+    }
+
+    return null;
+  }
+
+  return validateMarketRows(marketRows);
+}
+
+function buildFunctionConfiguration({ collectionIds, discountTitle, marketRows, bundlePrice }) {
+  const payload = {
+    collectionIds,
+    itemCount: 2,
+    discountTitle,
+  };
+
+  if (!marketRows.length) {
+    const amount = typeof bundlePrice === 'number'
+      ? bundlePrice
+      : parseFloat(String(bundlePrice ?? ''));
+
+    return {
+      ...payload,
+      bundlePrice: amount.toFixed(2),
+    };
+  }
+
+  return {
+    ...payload,
+    markets: serializeMarketsConfig(marketRows),
+  };
 }
 
 function validateMarketRows(marketRows) {

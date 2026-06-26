@@ -2,7 +2,7 @@ import { LitElement, html, nothing } from 'lit';
 import { gidToId } from '../utils.js';
 import {
   buildMarketRows,
-  validateMarketRows,
+  validatePricingConfig,
 } from '../utils/collectionPairDiscountConfig.js';
 
 function statusTone(status) {
@@ -37,6 +37,8 @@ class CollectionPairDiscountsPage extends LitElement {
     formError: { state: true },
     functionDeployed: { state: true },
     title: { state: true },
+    bundlePrice: { state: true },
+    useSinglePrice: { state: true },
     collectionQuery: { state: true },
     selectedCollectionId: { state: true },
     selectedCollectionTitle: { state: true },
@@ -56,6 +58,8 @@ class CollectionPairDiscountsPage extends LitElement {
     this.formError = null;
     this.functionDeployed = true;
     this.title = '';
+    this.bundlePrice = '';
+    this.useSinglePrice = false;
     this.collectionQuery = '';
     this.selectedCollectionId = '';
     this.selectedCollectionTitle = '';
@@ -134,6 +138,7 @@ class CollectionPairDiscountsPage extends LitElement {
         currencyCode: market.currencyCode ?? '',
       }));
       this.marketRows = buildMarketRows(allMarkets, {}, '');
+      this.useSinglePrice = this.marketRows.length === 0;
     } catch (e) {
       this.formError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -195,7 +200,7 @@ class CollectionPairDiscountsPage extends LitElement {
     event.preventDefault();
     this.formError = null;
 
-    const validationError = validateMarketRows(this.marketRows);
+    const validationError = validatePricingConfig(this.marketRows, this.bundlePrice);
     if (validationError) {
       this.formError = validationError;
       return;
@@ -208,10 +213,12 @@ class CollectionPairDiscountsPage extends LitElement {
         title: this.title,
         collectionId: this.selectedCollectionId,
         marketRows: this.marketRows,
+        bundlePrice: this.bundlePrice,
         startsAt: this.startsAt ? new Date(this.startsAt).toISOString() : undefined,
       });
 
       this.title = '';
+      this.bundlePrice = '';
       this.clearSelectedCollection();
       this.startsAt = new Date().toISOString().slice(0, 16);
       await this.loadMarkets();
@@ -281,7 +288,7 @@ class CollectionPairDiscountsPage extends LitElement {
       this.title.trim()
       && this.selectedCollectionId
       && !this.creating
-      && !validateMarketRows(this.marketRows),
+      && !validatePricingConfig(this.marketRows, this.bundlePrice),
     );
 
     return html`
@@ -334,18 +341,28 @@ class CollectionPairDiscountsPage extends LitElement {
                   <s-paragraph color="subdued">Selected: ${ this.selectedCollectionTitle }</s-paragraph>
                 ` : nothing }
               </s-stack>
-              <s-heading>Markets</s-heading>
-              ${ this.loadingMarkets ? html`<s-text>Loading markets…</s-text>` : nothing }
-              ${ !this.loadingMarkets && this.marketRows.length ? html`
+              <s-heading>${ this.useSinglePrice ? 'Bundle price' : 'Markets' }</s-heading>
+              ${ this.useSinglePrice ? html`
+                <s-number-field
+                  label="Fixed bundle price"
+                  name="bundlePrice"
+                  value=${ this.bundlePrice }
+                  min="0"
+                  step="0.01"
+                  required
+                  @input=${ (event) => { this.bundlePrice = event.currentTarget.value; } }
+                ></s-number-field>
+              ` : nothing }
+              ${ !this.useSinglePrice && this.loadingMarkets ? html`<s-text>Loading markets…</s-text>` : nothing }
+              ${ !this.useSinglePrice && !this.loadingMarkets && this.marketRows.length ? html`
                 <s-stack gap="base">
                   ${ this.marketRows.map((row) => this.renderMarketRow(row)) }
                 </s-stack>
               ` : nothing }
-              ${ !this.loadingMarkets && !this.marketRows.length ? html`
-                <s-paragraph color="subdued">No markets found for this store.</s-paragraph>
-              ` : nothing }
               <s-paragraph color="subdued">
-                Enable markets individually. Any two products from the collection are sold for that market's fixed total price.
+                ${ this.useSinglePrice
+                  ? 'Any two products from the collection are sold for this fixed total price.'
+                  : 'Enable markets individually. Any two products from the collection are sold for that market\'s fixed total price.' }
               </s-paragraph>
               <s-button
                 type="submit"

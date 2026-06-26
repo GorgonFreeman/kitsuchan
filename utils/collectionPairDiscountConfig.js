@@ -80,6 +80,73 @@ export function serializeMarketsConfig(marketRows) {
 /**
   * @param {MarketRow[]} marketRows
   */
+export function usesSinglePrice(marketRows) {
+  return !marketRows?.length;
+}
+
+/**
+  * @param {number | string} bundlePrice
+  */
+export function validateSinglePrice(bundlePrice) {
+  const amount = typeof bundlePrice === 'number'
+    ? bundlePrice
+    : parseFloat(String(bundlePrice ?? ''));
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return 'Bundle price must be greater than zero';
+  }
+
+  return null;
+}
+
+/**
+  * @param {MarketRow[]} marketRows
+  * @param {number | string} [bundlePrice]
+  */
+export function validatePricingConfig(marketRows, bundlePrice) {
+  if (usesSinglePrice(marketRows)) {
+    return validateSinglePrice(bundlePrice);
+  }
+
+  return validateMarketRows(marketRows);
+}
+
+/**
+  * @param {{
+  *   collectionIds: string[],
+  *   itemCount?: number,
+  *   discountTitle?: string,
+  *   marketRows?: MarketRow[],
+  *   bundlePrice?: number | string,
+  * }} input
+  */
+export function buildFunctionConfiguration(input) {
+  const payload = {
+    collectionIds: input.collectionIds,
+    itemCount: input.itemCount ?? 2,
+    discountTitle: input.discountTitle ?? '',
+  };
+
+  if (usesSinglePrice(input.marketRows ?? [])) {
+    const amount = typeof input.bundlePrice === 'number'
+      ? input.bundlePrice
+      : parseFloat(String(input.bundlePrice ?? ''));
+
+    return {
+      ...payload,
+      bundlePrice: amount.toFixed(2),
+    };
+  }
+
+  return {
+    ...payload,
+    markets: serializeMarketsConfig(input.marketRows ?? []),
+  };
+}
+
+/**
+  * @param {MarketRow[]} marketRows
+  */
 export function validateMarketRows(marketRows) {
   const enabled = marketRows.filter((row) => row.enabled);
   if (!enabled.length) {
