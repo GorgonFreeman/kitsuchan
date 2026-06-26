@@ -2,6 +2,8 @@
 
 import { shopify } from '../shopify-server.js';
 import {
+  PRICING_MODE_MARKETS,
+  PRICING_MODE_SINGLE,
   buildFunctionConfiguration,
   validatePricingConfig,
 } from '../utils/collectionPairDiscountConfig.js';
@@ -56,6 +58,9 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
   const endsAt = typeof body?.endsAt === 'string' && body.endsAt.trim() ? body.endsAt.trim() : null;
   const marketRows = normalizeMarketRows(body);
   const bundlePrice = body?.bundlePrice;
+  const pricingMode = body?.pricingMode === PRICING_MODE_MARKETS
+    ? PRICING_MODE_MARKETS
+    : PRICING_MODE_SINGLE;
 
   if (!title) {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -69,7 +74,11 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
     return;
   }
 
-  const pricingError = validatePricingConfig(marketRows, bundlePrice);
+  const pricingError = validatePricingConfig({
+    pricingMode,
+    marketRows,
+    bundlePrice,
+  });
   if (pricingError) {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ ok: false, error: pricingError }));
@@ -80,6 +89,7 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
   const config = buildFunctionConfiguration({
     collectionIds: [ collectionId ],
     discountTitle: title,
+    pricingMode,
     marketRows,
     bundlePrice,
   });

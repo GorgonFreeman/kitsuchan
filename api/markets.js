@@ -5,6 +5,9 @@ import { gqlErrorResponse } from './_collectionPairDiscountShared.js';
 
 const QUERY = `#graphql
   query CollectionPairDiscountMarkets($first: Int!) {
+    shop {
+      currencyCode
+    }
     markets(first: $first) {
       nodes {
         id
@@ -46,7 +49,11 @@ export default async function markets(req, res, { session }) {
     }));
 
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ ok: true, markets: nodes }));
+    res.end(JSON.stringify({
+      ok: true,
+      currencyCode: data?.shop?.currencyCode ?? '',
+      markets: nodes,
+    }));
   } catch (err) {
     gqlErrorResponse(res, err, 'markets');
   }

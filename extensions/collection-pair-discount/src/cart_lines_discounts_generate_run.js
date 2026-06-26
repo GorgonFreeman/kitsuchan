@@ -7,7 +7,7 @@ import {
 /**
   * @typedef {import("../generated/api").CartInput} RunInput
   * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
-  * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, markets: Record<string, { enabled?: boolean, bundlePrice?: unknown }>, legacyBundlePrice: unknown }} ParsedConfig
+  * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, pricingMode: 'single' | 'markets', markets: Record<string, { enabled?: boolean, bundlePrice?: unknown }>, bundlePrice: unknown }} ParsedConfig
   */
 
 const DEFAULT_ITEM_COUNT = 2;
@@ -128,13 +128,37 @@ function parseConfig(jsonValue) {
     ? /** @type {ParsedConfig['markets']} */ (config.markets)
     : {};
 
+  const pricingMode = inferPricingMode(config, markets);
+
   return {
     collectionIds,
     itemCount: Math.floor(itemCount),
     discountTitle: typeof config.discountTitle === 'string' ? config.discountTitle : '',
+    pricingMode,
     markets,
-    legacyBundlePrice: config.bundlePrice,
+    bundlePrice: config.bundlePrice,
   };
+}
+
+/**
+  * @param {Record<string, unknown>} config
+  * @param {ParsedConfig['markets']} markets
+  * @returns {'single' | 'markets'}
+  */
+function inferPricingMode(config, markets) {
+  if (config.pricingMode === 'markets') {
+    return 'markets';
+  }
+
+  if (config.pricingMode === 'single') {
+    return 'single';
+  }
+
+  if (Object.keys(markets).length > 0) {
+    return 'markets';
+  }
+
+  return 'single';
 }
 
 /**
@@ -143,13 +167,8 @@ function parseConfig(jsonValue) {
   * @returns {number | null}
   */
 function resolveBundlePriceCents(config, marketId) {
-  if (marketId && config.markets[ marketId ]) {
-    const entry = config.markets[ marketId ];
-    if (entry.enabled === false) {
-      return null;
-    }
-
-    const cents = moneyToCents(entry.bundlePrice);
+  if (config.pricingMode === 'single') {
+    const cents = moneyToCents(config.bundlePrice);
     if (cents == null || cents <= 0) {
       return null;
     }
@@ -157,17 +176,21 @@ function resolveBundlePriceCents(config, marketId) {
     return cents;
   }
 
-  const hasMarketConfig = Object.keys(config.markets).length > 0;
-  if (hasMarketConfig) {
+  if (!marketId || !config.markets[ marketId ]) {
     return null;
   }
 
-  const legacyCents = moneyToCents(config.legacyBundlePrice);
-  if (legacyCents == null || legacyCents <= 0) {
+  const entry = config.markets[ marketId ];
+  if (entry.enabled === false) {
     return null;
   }
 
-  return legacyCents;
+  const cents = moneyToCents(entry.bundlePrice);
+  if (cents == null || cents <= 0) {
+    return null;
+  }
+
+  return cents;
 }
 
 /**

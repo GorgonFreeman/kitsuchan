@@ -1,6 +1,8 @@
 import { LitElement, html, nothing } from 'lit';
 import { gidToId } from '../utils.js';
 import {
+  PRICING_MODE_MARKETS,
+  PRICING_MODE_SINGLE,
   buildMarketRows,
   validatePricingConfig,
 } from '../utils/collectionPairDiscountConfig.js';
@@ -38,7 +40,8 @@ class CollectionPairDiscountsPage extends LitElement {
     functionDeployed: { state: true },
     title: { state: true },
     bundlePrice: { state: true },
-    useSinglePrice: { state: true },
+    pricingMode: { state: true },
+    shopCurrencyCode: { state: true },
     collectionQuery: { state: true },
     selectedCollectionId: { state: true },
     selectedCollectionTitle: { state: true },
@@ -59,7 +62,8 @@ class CollectionPairDiscountsPage extends LitElement {
     this.functionDeployed = true;
     this.title = '';
     this.bundlePrice = '';
-    this.useSinglePrice = false;
+    this.pricingMode = PRICING_MODE_SINGLE;
+    this.shopCurrencyCode = '';
     this.collectionQuery = '';
     this.selectedCollectionId = '';
     this.selectedCollectionTitle = '';
@@ -137,8 +141,8 @@ class CollectionPairDiscountsPage extends LitElement {
         name: market.name,
         currencyCode: market.currencyCode ?? '',
       }));
-      this.marketRows = buildMarketRows(allMarkets, {}, '');
-      this.useSinglePrice = this.marketRows.length === 0;
+      this.shopCurrencyCode = data.currencyCode ?? '';
+      this.marketRows = buildMarketRows(allMarkets, {});
     } catch (e) {
       this.formError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -184,6 +188,24 @@ class CollectionPairDiscountsPage extends LitElement {
     this.selectedCollectionTitle = '';
   }
 
+  onPricingModeChange(event) {
+    this.pricingMode = event.currentTarget.value === PRICING_MODE_MARKETS
+      ? PRICING_MODE_MARKETS
+      : PRICING_MODE_SINGLE;
+  }
+
+  get isSinglePriceMode() {
+    return this.pricingMode === PRICING_MODE_SINGLE;
+  }
+
+  get pricingValidationError() {
+    return validatePricingConfig({
+      pricingMode: this.pricingMode,
+      marketRows: this.marketRows,
+      bundlePrice: this.bundlePrice,
+    });
+  }
+
   onMarketEnabledChange(marketId, enabled) {
     this.marketRows = this.marketRows.map((row) => (
       row.marketId === marketId ? { ...row, enabled } : row
@@ -200,7 +222,7 @@ class CollectionPairDiscountsPage extends LitElement {
     event.preventDefault();
     this.formError = null;
 
-    const validationError = validatePricingConfig(this.marketRows, this.bundlePrice);
+    const validationError = this.pricingValidationError;
     if (validationError) {
       this.formError = validationError;
       return;
@@ -212,6 +234,7 @@ class CollectionPairDiscountsPage extends LitElement {
       await this.apiPost('/api/collectionPairDiscountCreate', {
         title: this.title,
         collectionId: this.selectedCollectionId,
+        pricingMode: this.pricingMode,
         marketRows: this.marketRows,
         bundlePrice: this.bundlePrice,
         startsAt: this.startsAt ? new Date(this.startsAt).toISOString() : undefined,
@@ -288,7 +311,7 @@ class CollectionPairDiscountsPage extends LitElement {
       this.title.trim()
       && this.selectedCollectionId
       && !this.creating
-      && !validatePricingConfig(this.marketRows, this.bundlePrice),
+      && !this.pricingValidationError,
     );
 
     return html`
@@ -341,10 +364,18 @@ class CollectionPairDiscountsPage extends LitElement {
                   <s-paragraph color="subdued">Selected: ${ this.selectedCollectionTitle }</s-paragraph>
                 ` : nothing }
               </s-stack>
-              <s-heading>${ this.useSinglePrice ? 'Bundle price' : 'Markets' }</s-heading>
-              ${ this.useSinglePrice ? html`
+              <s-select
+                label="Pricing"
+                name="pricingMode"
+                value=${ this.pricingMode }
+                @change=${ this.onPricingModeChange }
+              >
+                <s-option value=${ PRICING_MODE_SINGLE }>One price</s-option>
+                <s-option value=${ PRICING_MODE_MARKETS }>Markets</s-option>
+              </s-select>
+              ${ this.isSinglePriceMode ? html`
                 <s-number-field
-                  label="Fixed bundle price"
+                  label=${ `Fixed bundle price (${ this.shopCurrencyCode || '—' })` }
                   name="bundlePrice"
                   value=${ this.bundlePrice }
                   min="0"
@@ -353,15 +384,18 @@ class CollectionPairDiscountsPage extends LitElement {
                   @input=${ (event) => { this.bundlePrice = event.currentTarget.value; } }
                 ></s-number-field>
               ` : nothing }
-              ${ !this.useSinglePrice && this.loadingMarkets ? html`<s-text>Loading markets…</s-text>` : nothing }
-              ${ !this.useSinglePrice && !this.loadingMarkets && this.marketRows.length ? html`
+              ${ !this.isSinglePriceMode && this.loadingMarkets ? html`<s-text>Loading markets…</s-text>` : nothing }
+              ${ !this.isSinglePriceMode && !this.loadingMarkets && this.marketRows.length ? html`
                 <s-stack gap="base">
                   ${ this.marketRows.map((row) => this.renderMarketRow(row)) }
                 </s-stack>
               ` : nothing }
+              ${ !this.isSinglePriceMode && !this.loadingMarkets && !this.marketRows.length ? html`
+                <s-paragraph color="subdued">No markets found for this store.</s-paragraph>
+              ` : nothing }
               <s-paragraph color="subdued">
-                ${ this.useSinglePrice
-                  ? 'Any two products from the collection are sold for this fixed total price.'
+                ${ this.isSinglePriceMode
+                  ? 'Any two products from the collection are sold for this fixed total price in your store currency.'
                   : 'Enable markets individually. Any two products from the collection are sold for that market\'s fixed total price.' }
               </s-paragraph>
               <s-button

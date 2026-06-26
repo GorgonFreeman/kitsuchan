@@ -56,6 +56,7 @@
             "collectionIds": ["gid://shopify/Collection/1"],
             "itemCount": 2,
             "discountTitle": "Summer tee bundle",
+            "pricingMode": "markets",
             "markets": {
               "gid://shopify/Market/1": {
                 "enabled": true,

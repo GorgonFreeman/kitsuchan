@@ -3,6 +3,9 @@ import '@shopify/ui-extensions/preact';
 import { render } from 'preact';
 import { useState, useEffect, useMemo } from 'preact/hooks';
 
+const PRICING_MODE_SINGLE = 'single';
+const PRICING_MODE_MARKETS = 'markets';
+
 export default async () => {
   render(<App />, document.body);
 };
@@ -41,18 +44,22 @@ function App() {
     initialBundlePrice,
     initialCollection,
     initialMarketRows,
+    initialPricingMode,
     loading,
     marketRows,
     onBundlePriceChange,
     onMarketEnabledChange,
     onMarketPriceChange,
+    onPricingModeChange,
     onSelectCollection,
+    pricingMode,
     removeCollection,
     resetForm,
-    useSinglePrice,
+    shopCurrencyCode,
   } = useExtensionData();
 
   const [ error, setError ] = useState();
+  const isSinglePriceMode = pricingMode === PRICING_MODE_SINGLE;
 
   useEffect(() => {
     ensureProductDiscountClass().catch(() => {
@@ -98,10 +105,18 @@ function App() {
               <s-paragraph color="subdued">{ i18n.translate('noCollection') }</s-paragraph>
             ) }
           </s-stack>
-          <s-heading>{ useSinglePrice ? i18n.translate('bundlePriceHeading') : i18n.translate('marketsHeading') }</s-heading>
-          { useSinglePrice ? (
+          <s-select
+            label={ i18n.translate('pricingModeLabel') }
+            name="pricingMode"
+            value={ pricingMode }
+            onChange={(event) => onPricingModeChange(event.currentTarget.value)}
+          >
+            <s-option value={ PRICING_MODE_SINGLE }>{ i18n.translate('pricingModeSingle') }</s-option>
+            <s-option value={ PRICING_MODE_MARKETS }>{ i18n.translate('pricingModeMarkets') }</s-option>
+          </s-select>
+          { isSinglePriceMode ? (
             <s-number-field
-              label={ i18n.translate('bundlePriceLabel') }
+              label={ `${ i18n.translate('bundlePriceLabel') } (${ shopCurrencyCode || '—' })` }
               name="bundlePrice"
               value={ String(bundlePrice) }
               defaultValue={ String(initialBundlePrice) }
@@ -109,16 +124,24 @@ function App() {
               step={ 0.01 }
               onChange={(event) => onBundlePriceChange(event.currentTarget.value)}
             />
-          ) : marketRows.map((row) => (
-            <MarketPriceRow
-              key={ row.marketId }
-              row={ row }
-              i18n={ i18n }
-              onEnabledChange={ onMarketEnabledChange }
-              onPriceChange={ onMarketPriceChange }
-            />
-          )) }
-          <s-paragraph color="subdued">{ i18n.translate('itemCountNote') }</s-paragraph>
+          ) : marketRows.length ? (
+            marketRows.map((row) => (
+              <MarketPriceRow
+                key={ row.marketId }
+                row={ row }
+                i18n={ i18n }
+                onEnabledChange={ onMarketEnabledChange }
+                onPriceChange={ onMarketPriceChange }
+              />
+            ))
+          ) : (
+            <s-paragraph color="subdued">{ i18n.translate('noMarkets') }</s-paragraph>
+          ) }
+          <s-paragraph color="subdued">
+            { isSinglePriceMode
+              ? i18n.translate('singlePriceNote')
+              : i18n.translate('itemCountNote') }
+          </s-paragraph>
         </s-stack>
       </s-section>
     </s-function-settings>
@@ -141,14 +164,16 @@ function useExtensionData() {
   const [ initialMarketRows, setInitialMarketRows ] = useState([]);
   const [ bundlePrice, setBundlePrice ] = useState(0);
   const [ initialBundlePrice, setInitialBundlePrice ] = useState(0);
-  const [ useSinglePrice, setUseSinglePrice ] = useState(false);
+  const [ pricingMode, setPricingMode ] = useState(PRICING_MODE_SINGLE);
+  const [ initialPricingMode, setInitialPricingMode ] = useState(PRICING_MODE_SINGLE);
+  const [ shopCurrencyCode, setShopCurrencyCode ] = useState('');
   const [ loading, setLoading ] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
 
-      const [ selectedCollection, allMarkets ] = await Promise.all([
+      const [ selectedCollection, marketsResult ] = await Promise.all([
         metafieldConfig.collectionId
           ? getCollection(metafieldConfig.collectionId, query)
           : Promise.resolve(null),
@@ -157,16 +182,14 @@ function useExtensionData() {
 
       setInitialCollection(selectedCollection);
       setCollection(selectedCollection);
+      setShopCurrencyCode(marketsResult.currencyCode);
 
-      const rows = buildMarketRows(
-        allMarkets,
-        metafieldConfig.markets,
-        metafieldConfig.legacyBundlePrice,
-      );
-      const singlePrice = rows.length === 0;
-      const singlePriceAmount = singlePrice ? Number(metafieldConfig.legacyBundlePrice) || 0 : 0;
+      const rows = buildMarketRows(allMarketsFromResult(marketsResult), metafieldConfig.markets);
+      const savedPricingMode = metafieldConfig.pricingMode;
+      const singlePriceAmount = Number(metafieldConfig.bundlePrice) || 0;
 
-      setUseSinglePrice(singlePrice);
+      setPricingMode(savedPricingMode);
+      setInitialPricingMode(savedPricingMode);
       setMarketRows(rows);
       setInitialMarketRows(rows);
       setBundlePrice(singlePriceAmount);
@@ -175,7 +198,7 @@ function useExtensionData() {
     };
 
     load();
-  }, [ metafieldConfig.collectionId, metafieldConfig.legacyBundlePrice, data?.metafields, query ]);
+  }, [ metafieldConfig.collectionId, metafieldConfig.bundlePrice, metafieldConfig.pricingMode, data?.metafields, query ]);
 
   const ensureProductDiscountClass = async () => {
     const discountClasses = shopify.discounts?.discountClasses?.value ?? [];
@@ -187,6 +210,10 @@ function useExtensionData() {
     if (!result?.success) {
       throw new Error('Unable to update discount classes');
     }
+  };
+
+  const onPricingModeChange = (value) => {
+    setPricingMode(value === PRICING_MODE_MARKETS ? PRICING_MODE_MARKETS : PRICING_MODE_SINGLE);
   };
 
   const onMarketEnabledChange = (marketId, enabled) => {
@@ -210,7 +237,11 @@ function useExtensionData() {
       throw new Error('Collection is required');
     }
 
-    const validationError = validatePricingConfig(marketRows, bundlePrice);
+    const validationError = validatePricingConfig({
+      pricingMode,
+      marketRows,
+      bundlePrice,
+    });
     if (validationError) {
       throw new Error(validationError);
     }
@@ -219,6 +250,7 @@ function useExtensionData() {
     const config = buildFunctionConfiguration({
       collectionIds: [ collection.id ],
       discountTitle,
+      pricingMode,
       marketRows,
       bundlePrice,
     });
@@ -234,12 +266,14 @@ function useExtensionData() {
     setInitialCollection(collection);
     setInitialMarketRows(marketRows);
     setInitialBundlePrice(bundlePrice);
+    setInitialPricingMode(pricingMode);
   }
 
   const resetForm = () => {
     setCollection(initialCollection);
     setMarketRows(initialMarketRows);
     setBundlePrice(initialBundlePrice);
+    setPricingMode(initialPricingMode);
   };
 
   const onSelectCollection = async () => {
@@ -270,15 +304,18 @@ function useExtensionData() {
     initialBundlePrice,
     initialCollection,
     initialMarketRows,
+    initialPricingMode,
     loading,
     marketRows,
     onBundlePriceChange,
     onMarketEnabledChange,
     onMarketPriceChange,
+    onPricingModeChange,
     onSelectCollection,
+    pricingMode,
     removeCollection,
     resetForm,
-    useSinglePrice,
+    shopCurrencyCode,
   };
 }
 
@@ -289,42 +326,53 @@ function parseMetafield(value) {
       ? parsed.collectionIds[ 0 ]
       : parsed.collectionId ?? '';
 
+    const markets = parsed.markets && typeof parsed.markets === 'object' ? parsed.markets : {};
+    const pricingMode = inferPricingMode(parsed, markets);
+
     return {
       collectionId,
-      markets: parsed.markets && typeof parsed.markets === 'object' ? parsed.markets : {},
-      legacyBundlePrice: parsed.bundlePrice != null ? String(parsed.bundlePrice) : '',
+      markets,
+      bundlePrice: parsed.bundlePrice != null ? String(parsed.bundlePrice) : '',
+      pricingMode,
     };
   } catch {
     return {
       collectionId: '',
       markets: {},
-      legacyBundlePrice: '',
+      bundlePrice: '',
+      pricingMode: PRICING_MODE_SINGLE,
     };
   }
 }
 
-function buildMarketRows(allMarkets, savedMarkets, legacyBundlePrice) {
+function inferPricingMode(parsed, markets) {
+  if (parsed?.pricingMode === PRICING_MODE_MARKETS) {
+    return PRICING_MODE_MARKETS;
+  }
+
+  if (parsed?.pricingMode === PRICING_MODE_SINGLE) {
+    return PRICING_MODE_SINGLE;
+  }
+
+  if (Object.keys(markets).length > 0) {
+    return PRICING_MODE_MARKETS;
+  }
+
+  return PRICING_MODE_SINGLE;
+}
+
+function buildMarketRows(allMarkets, savedMarkets) {
   const hasSavedMarkets = Object.keys(savedMarkets ?? {}).length > 0;
 
   return allMarkets.map((market) => {
     const saved = savedMarkets?.[ market.id ];
 
-    if (hasSavedMarkets) {
-      return {
-        marketId: market.id,
-        name: market.name,
-        currencyCode: market.currencyCode ?? '',
-        enabled: saved?.enabled === true,
-        bundlePrice: saved?.bundlePrice != null ? saved.bundlePrice : '',
-      };
-    }
-
     return {
       marketId: market.id,
       name: market.name,
       currencyCode: market.currencyCode ?? '',
-      enabled: Boolean(legacyBundlePrice),
-      bundlePrice: legacyBundlePrice || '',
+      enabled: hasSavedMarkets ? saved?.enabled === true : false,
+      bundlePrice: saved?.bundlePrice != null ? saved.bundlePrice : '',
     };
   });
 }
@@ -351,8 +399,8 @@ function serializeMarketsConfig(marketRows) {
   return markets;
 }
 
-function validatePricingConfig(marketRows, bundlePrice) {
-  if (!marketRows.length) {
+function validatePricingConfig({ pricingMode, marketRows, bundlePrice }) {
+  if (pricingMode === PRICING_MODE_SINGLE) {
     const amount = typeof bundlePrice === 'number'
       ? bundlePrice
       : parseFloat(String(bundlePrice ?? ''));
@@ -364,17 +412,22 @@ function validatePricingConfig(marketRows, bundlePrice) {
     return null;
   }
 
+  if (!marketRows.length) {
+    return 'No markets are configured in Shopify';
+  }
+
   return validateMarketRows(marketRows);
 }
 
-function buildFunctionConfiguration({ collectionIds, discountTitle, marketRows, bundlePrice }) {
+function buildFunctionConfiguration({ collectionIds, discountTitle, pricingMode, marketRows, bundlePrice }) {
   const payload = {
     collectionIds,
     itemCount: 2,
     discountTitle,
+    pricingMode,
   };
 
-  if (!marketRows.length) {
+  if (pricingMode === PRICING_MODE_SINGLE) {
     const amount = typeof bundlePrice === 'number'
       ? bundlePrice
       : parseFloat(String(bundlePrice ?? ''));
@@ -410,6 +463,14 @@ function validateMarketRows(marketRows) {
   return null;
 }
 
+function allMarketsFromResult(result) {
+  return (result?.markets ?? []).map((market) => ({
+    id: market.id,
+    name: market.name,
+    currencyCode: market.currencyCode ?? '',
+  }));
+}
+
 async function getDiscountTitle(discountNodeId, adminApiQuery) {
   if (!discountNodeId) {
     return '';
@@ -440,6 +501,9 @@ async function getDiscountTitle(discountNodeId, adminApiQuery) {
 async function getMarkets(adminApiQuery) {
   const gql = `#graphql
     query CollectionPairDiscountMarkets($first: Int!) {
+      shop {
+        currencyCode
+      }
       markets(first: $first) {
         nodes {
           id
@@ -458,11 +522,14 @@ async function getMarkets(adminApiQuery) {
     { variables: { first: 50 } },
   );
 
-  return (result?.data?.markets?.nodes ?? []).map((market) => ({
-    id: market.id,
-    name: market.name,
-    currencyCode: market.currencySettings?.baseCurrency?.currencyCode ?? '',
-  }));
+  return {
+    currencyCode: result?.data?.shop?.currencyCode ?? '',
+    markets: (result?.data?.markets?.nodes ?? []).map((market) => ({
+      id: market.id,
+      name: market.name,
+      currencyCode: market.currencySettings?.baseCurrency?.currencyCode ?? '',
+    })),
+  };
 }
 
 async function getCollection(collectionGid, adminApiQuery) {

@@ -55,6 +55,7 @@
           "jsonValue": {
             "collectionIds": ["gid://shopify/Collection/1"],
             "itemCount": 2,
+            "pricingMode": "markets",
             "markets": {
               "gid://shopify/Market/1": {
                 "enabled": true,

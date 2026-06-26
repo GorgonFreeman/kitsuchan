@@ -1,53 +1,75 @@
 /** @typedef {{ marketId: string, name: string, currencyCode: string, enabled: boolean, bundlePrice: number | string }} MarketRow */
 
+export const PRICING_MODE_SINGLE = 'single';
+export const PRICING_MODE_MARKETS = 'markets';
+
+/**
+  * @param {unknown} parsed
+  * @returns {'single' | 'markets'}
+  */
+export function inferPricingMode(parsed) {
+  if (parsed?.pricingMode === PRICING_MODE_MARKETS) {
+    return PRICING_MODE_MARKETS;
+  }
+
+  if (parsed?.pricingMode === PRICING_MODE_SINGLE) {
+    return PRICING_MODE_SINGLE;
+  }
+
+  if (parsed?.markets && typeof parsed.markets === 'object' && Object.keys(parsed.markets).length > 0) {
+    return PRICING_MODE_MARKETS;
+  }
+
+  return PRICING_MODE_SINGLE;
+}
+
 /**
   * @param {unknown} rawValue
   */
 export function parseMarketsFromConfig(rawValue) {
   if (rawValue == null || rawValue === '') {
-    return { markets: {}, legacyBundlePrice: '' };
+    return {
+      markets: {},
+      bundlePrice: '',
+      pricingMode: PRICING_MODE_SINGLE,
+    };
   }
 
   try {
     const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
     const markets = parsed?.markets && typeof parsed.markets === 'object' ? parsed.markets : {};
+
     return {
       markets,
-      legacyBundlePrice: parsed?.bundlePrice != null ? String(parsed.bundlePrice) : '',
+      bundlePrice: parsed?.bundlePrice != null ? String(parsed.bundlePrice) : '',
+      pricingMode: inferPricingMode(parsed),
     };
   } catch {
-    return { markets: {}, legacyBundlePrice: '' };
+    return {
+      markets: {},
+      bundlePrice: '',
+      pricingMode: PRICING_MODE_SINGLE,
+    };
   }
 }
 
 /**
   * @param {Array<{ id: string, name: string, currencyCode?: string }>} allMarkets
   * @param {Record<string, { enabled?: boolean, bundlePrice?: string | number }>} savedMarkets
-  * @param {string} legacyBundlePrice
   * @returns {MarketRow[]}
   */
-export function buildMarketRows(allMarkets, savedMarkets, legacyBundlePrice = '') {
+export function buildMarketRows(allMarkets, savedMarkets) {
   const hasSavedMarkets = Object.keys(savedMarkets ?? {}).length > 0;
 
   return allMarkets.map((market) => {
     const saved = savedMarkets?.[ market.id ];
 
-    if (hasSavedMarkets) {
-      return {
-        marketId: market.id,
-        name: market.name,
-        currencyCode: market.currencyCode ?? '',
-        enabled: saved?.enabled === true,
-        bundlePrice: saved?.bundlePrice != null ? saved.bundlePrice : '',
-      };
-    }
-
     return {
       marketId: market.id,
       name: market.name,
       currencyCode: market.currencyCode ?? '',
-      enabled: Boolean(legacyBundlePrice),
-      bundlePrice: legacyBundlePrice || '',
+      enabled: hasSavedMarkets ? saved?.enabled === true : false,
+      bundlePrice: saved?.bundlePrice != null ? saved.bundlePrice : '',
     };
   });
 }
@@ -78,10 +100,10 @@ export function serializeMarketsConfig(marketRows) {
 }
 
 /**
-  * @param {MarketRow[]} marketRows
+  * @param {'single' | 'markets'} pricingMode
   */
-export function usesSinglePrice(marketRows) {
-  return !marketRows?.length;
+export function isSinglePriceMode(pricingMode) {
+  return pricingMode === PRICING_MODE_SINGLE;
 }
 
 /**
@@ -100,15 +122,22 @@ export function validateSinglePrice(bundlePrice) {
 }
 
 /**
-  * @param {MarketRow[]} marketRows
-  * @param {number | string} [bundlePrice]
+  * @param {{
+  *   pricingMode: 'single' | 'markets',
+  *   marketRows?: MarketRow[],
+  *   bundlePrice?: number | string,
+  * }} input
   */
-export function validatePricingConfig(marketRows, bundlePrice) {
-  if (usesSinglePrice(marketRows)) {
-    return validateSinglePrice(bundlePrice);
+export function validatePricingConfig(input) {
+  if (isSinglePriceMode(input.pricingMode)) {
+    return validateSinglePrice(input.bundlePrice);
   }
 
-  return validateMarketRows(marketRows);
+  if (!input.marketRows?.length) {
+    return 'No markets are configured in Shopify';
+  }
+
+  return validateMarketRows(input.marketRows);
 }
 
 /**
@@ -116,6 +145,7 @@ export function validatePricingConfig(marketRows, bundlePrice) {
   *   collectionIds: string[],
   *   itemCount?: number,
   *   discountTitle?: string,
+  *   pricingMode: 'single' | 'markets',
   *   marketRows?: MarketRow[],
   *   bundlePrice?: number | string,
   * }} input
@@ -125,9 +155,10 @@ export function buildFunctionConfiguration(input) {
     collectionIds: input.collectionIds,
     itemCount: input.itemCount ?? 2,
     discountTitle: input.discountTitle ?? '',
+    pricingMode: input.pricingMode,
   };
 
-  if (usesSinglePrice(input.marketRows ?? [])) {
+  if (isSinglePriceMode(input.pricingMode)) {
     const amount = typeof input.bundlePrice === 'number'
       ? input.bundlePrice
       : parseFloat(String(input.bundlePrice ?? ''));
@@ -173,4 +204,17 @@ export function summarizeEnabledMarkets(markets) {
   return Object.entries(markets ?? {})
     .filter(([ , entry ]) => entry?.enabled && entry?.bundlePrice)
     .map(([ , entry ]) => entry.bundlePrice);
+}
+
+/**
+  * @param {'single' | 'markets'} pricingMode
+  * @param {string} bundlePrice
+  * @param {Record<string, { enabled?: boolean, bundlePrice?: string }>} markets
+  */
+export function summarizePricing(pricingMode, bundlePrice, markets) {
+  if (isSinglePriceMode(pricingMode)) {
+    return bundlePrice ? [ bundlePrice ] : [];
+  }
+
+  return summarizeEnabledMarkets(markets);
 }

@@ -1,6 +1,6 @@
 import {
   parseMarketsFromConfig,
-  summarizeEnabledMarkets,
+  summarizePricing,
 } from '../utils/collectionPairDiscountConfig.js';
 
 export const FUNCTION_HANDLE = 'collection-pair-discount';
@@ -39,14 +39,15 @@ export function parseBundleConfig(rawValue) {
         ? [ parsed.collectionId ]
         : [];
 
-    const { markets, legacyBundlePrice } = parseMarketsFromConfig(parsed);
+    const { markets, bundlePrice, pricingMode } = parseMarketsFromConfig(parsed);
 
     return {
       collectionIds,
       itemCount: Number(parsed.itemCount ?? 2),
-      bundlePrice: legacyBundlePrice,
+      bundlePrice,
+      pricingMode,
       markets,
-      enabledPrices: summarizeEnabledMarkets(markets),
+      enabledPrices: summarizePricing(pricingMode, bundlePrice, markets),
     };
   } catch {
     return null;
