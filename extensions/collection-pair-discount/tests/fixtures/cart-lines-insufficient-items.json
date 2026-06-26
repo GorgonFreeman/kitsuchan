@@ -21,7 +21,8 @@
               "product": {
                 "inAnyCollection": true
               }
-            }
+            },
+            "discountAllocations": []
           }
         ]
       },

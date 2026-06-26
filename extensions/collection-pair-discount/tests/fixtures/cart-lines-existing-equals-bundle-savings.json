@@ -6,23 +6,51 @@
       "cart": {
         "lines": [
           {
-            "id": "gid://shopify/CartLine/0",
+            "id": "gid://shopify/CartLine/10",
             "quantity": 1,
             "cost": {
               "subtotalAmount": {
-                "amount": "100.0"
+                "amount": "10.0"
               },
               "amountPerQuantity": {
-                "amount": "100.0"
+                "amount": "10.0"
               }
             },
+            "discountAllocations": [
+              {
+                "discountedAmount": {
+                  "amount": "8.00"
+                },
+                "discountApplication": {
+                  "targetType": "LINE_ITEM"
+                }
+              }
+            ],
             "merchandise": {
               "__typename": "ProductVariant",
               "product": {
-                "inAnyCollection": false
+                "inAnyCollection": true
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/20",
+            "quantity": 1,
+            "cost": {
+              "subtotalAmount": {
+                "amount": "10.0"
+              },
+              "amountPerQuantity": {
+                "amount": "10.0"
               }
             },
-            "discountAllocations": []
+            "discountAllocations": [],
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "inAnyCollection": true
+              }
+            }
           }
         ]
       },

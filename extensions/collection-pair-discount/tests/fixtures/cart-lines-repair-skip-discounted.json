@@ -6,7 +6,7 @@
       "cart": {
         "lines": [
           {
-            "id": "gid://shopify/CartLine/10",
+            "id": "gid://shopify/CartLine/1",
             "quantity": 1,
             "cost": {
               "subtotalAmount": {
@@ -16,40 +16,62 @@
                 "amount": "10.0"
               }
             },
+            "discountAllocations": [
+              {
+                "discountedAmount": {
+                  "amount": "8.00"
+                },
+                "discountApplication": {
+                  "targetType": "LINE_ITEM"
+                }
+              }
+            ],
             "merchandise": {
               "__typename": "ProductVariant",
               "product": {
                 "inAnyCollection": true
               }
-            },
-            "discountAllocations": []
+            }
           },
           {
-            "id": "gid://shopify/CartLine/5",
+            "id": "gid://shopify/CartLine/2",
             "quantity": 1,
             "cost": {
               "subtotalAmount": {
-                "amount": "5.0"
+                "amount": "10.0"
               },
               "amountPerQuantity": {
-                "amount": "5.0"
+                "amount": "10.0"
               }
             },
+            "discountAllocations": [],
             "merchandise": {
               "__typename": "ProductVariant",
               "product": {
                 "inAnyCollection": true
               }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/3",
+            "quantity": 1,
+            "cost": {
+              "subtotalAmount": {
+                "amount": "10.0"
+              },
+              "amountPerQuantity": {
+                "amount": "10.0"
+              }
             },
-            "discountAllocations": []
+            "discountAllocations": [],
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "inAnyCollection": true
+              }
+            }
           }
         ]
-      },
-      "localization": {
-        "market": {
-          "id": "gid://shopify/Market/1",
-          "handle": "us"
-        }
       },
       "discount": {
         "discountClasses": ["PRODUCT"],
@@ -57,14 +79,8 @@
           "jsonValue": {
             "collectionIds": ["gid://shopify/Collection/1"],
             "itemCount": 2,
-            "discountTitle": "Summer tee bundle",
-            "pricingMode": "markets",
-            "markets": {
-              "gid://shopify/Market/1": {
-                "enabled": true,
-                "bundlePrice": "12.00"
-              }
-            }
+            "pricingMode": "single",
+            "bundlePrice": "12.00"
           }
         }
       }
@@ -78,35 +94,33 @@
           "productDiscountsAdd": {
             "candidates": [
               {
-                "message": "Summer tee bundle",
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/10",
+                      "id": "gid://shopify/CartLine/2",
                       "quantity": 1
                     }
                   }
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "2.00",
+                    "amount": "4.00",
                     "appliesToEachItem": false
                   }
                 }
               },
               {
-                "message": "Summer tee bundle",
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/5",
+                      "id": "gid://shopify/CartLine/3",
                       "quantity": 1
                     }
                   }
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "1.00",
+                    "amount": "4.00",
                     "appliesToEachItem": false
                   }
                 }

@@ -16,40 +16,43 @@
                 "amount": "10.0"
               }
             },
+            "discountAllocations": [
+              {
+                "discountedAmount": {
+                  "amount": "5.00"
+                },
+                "discountApplication": {
+                  "targetType": "LINE_ITEM"
+                }
+              }
+            ],
             "merchandise": {
               "__typename": "ProductVariant",
               "product": {
                 "inAnyCollection": true
               }
-            },
-            "discountAllocations": []
+            }
           },
           {
-            "id": "gid://shopify/CartLine/5",
+            "id": "gid://shopify/CartLine/20",
             "quantity": 1,
             "cost": {
               "subtotalAmount": {
-                "amount": "5.0"
+                "amount": "10.0"
               },
               "amountPerQuantity": {
-                "amount": "5.0"
+                "amount": "10.0"
               }
             },
+            "discountAllocations": [],
             "merchandise": {
               "__typename": "ProductVariant",
               "product": {
                 "inAnyCollection": true
               }
-            },
-            "discountAllocations": []
+            }
           }
         ]
-      },
-      "localization": {
-        "market": {
-          "id": "gid://shopify/Market/2",
-          "handle": "uk"
-        }
       },
       "discount": {
         "discountClasses": ["PRODUCT"],
@@ -57,16 +60,8 @@
           "jsonValue": {
             "collectionIds": ["gid://shopify/Collection/1"],
             "itemCount": 2,
-            "pricingMode": "markets",
-            "markets": {
-              "gid://shopify/Market/1": {
-                "enabled": true,
-                "bundlePrice": "12.00"
-              },
-              "gid://shopify/Market/2": {
-                "enabled": false
-              }
-            }
+            "pricingMode": "single",
+            "bundlePrice": "12.00"
           }
         }
       }
@@ -75,7 +70,31 @@
       "collectionIds": ["gid://shopify/Collection/1"]
     },
     "output": {
-      "operations": []
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/20",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "3.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "ALL"
+          }
+        }
+      ]
     }
   }
 }

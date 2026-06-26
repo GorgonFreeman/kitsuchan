@@ -11,6 +11,14 @@ query CartInput($collectionIds: [ID!]) {
           amount
         }
       }
+      discountAllocations {
+        discountedAmount {
+          amount
+        }
+        discountApplication {
+          targetType
+        }
+      }
       merchandise {
         __typename
         ... on ProductVariant {
