@@ -1,3 +1,8 @@
+import {
+  parseMarketsFromConfig,
+  summarizeEnabledMarkets,
+} from '../utils/collectionPairDiscountConfig.js';
+
 export const FUNCTION_HANDLE = 'collection-pair-discount';
 export const CONFIG_NAMESPACE = '$app';
 export const CONFIG_KEY = 'function-configuration';
@@ -34,10 +39,14 @@ export function parseBundleConfig(rawValue) {
         ? [ parsed.collectionId ]
         : [];
 
+    const { markets, legacyBundlePrice } = parseMarketsFromConfig(parsed);
+
     return {
       collectionIds,
       itemCount: Number(parsed.itemCount ?? 2),
-      bundlePrice: parsed.bundlePrice != null ? String(parsed.bundlePrice) : '',
+      bundlePrice: legacyBundlePrice,
+      markets,
+      enabledPrices: summarizeEnabledMarkets(markets),
     };
   } catch {
     return null;

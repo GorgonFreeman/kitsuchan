@@ -129,6 +129,7 @@ export default async function collectionPairDiscounts(req, res, { session }) {
         startsAt: discount.startsAt,
         endsAt: discount.endsAt,
         bundlePrice: config?.bundlePrice ?? '',
+        enabledPrices: config?.enabledPrices ?? [],
         collectionId,
         collectionTitle: collectionId ? (collectionTitles.get(collectionId) ?? '') : '',
       };

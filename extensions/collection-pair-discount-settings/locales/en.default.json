@@ -2,11 +2,13 @@
   "name": "Collection pair bundle settings",
   "description": "Configure collection pair bundle discounts",
   "title": "Collection pair bundle",
-  "helpText": "Choose a collection and the fixed total price for any two eligible products.",
+  "helpText": "Choose a collection and set a fixed bundle price per market.",
   "loading": "Loading...",
-  "bundlePriceLabel": "Fixed bundle price",
+  "marketsHeading": "Markets",
+  "marketPriceLabel": "Bundle price",
+  "noMarkets": "No markets found for this store.",
   "collectionButtonLabel": "Choose collection",
   "noCollection": "No collection selected yet.",
-  "itemCountNote": "Customers get every pair of eligible products from this collection for the fixed price. Discount is split proportionally by each product's price.",
+  "itemCountNote": "Enable markets individually. Customers get every pair of eligible products for that market's fixed price. Discount is split proportionally by each product's price.",
   "error": "Unable to save bundle settings. Please try again."
 }

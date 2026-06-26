@@ -2,6 +2,10 @@
 
 import { shopify } from '../shopify-server.js';
 import {
+  serializeMarketsConfig,
+  validateMarketRows,
+} from '../utils/collectionPairDiscountConfig.js';
+import {
   CONFIG_KEY,
   CONFIG_NAMESPACE,
   FUNCTION_HANDLE,
@@ -25,6 +29,20 @@ const CREATE_MUTATION = `#graphql
   }
 `;
 
+function normalizeMarketRows(body) {
+  if (!Array.isArray(body?.marketRows)) {
+    return null;
+  }
+
+  return body.marketRows.map((row) => ({
+    marketId: typeof row?.marketId === 'string' ? row.marketId : '',
+    name: typeof row?.name === 'string' ? row.name : 'Market',
+    currencyCode: typeof row?.currencyCode === 'string' ? row.currencyCode : '',
+    enabled: row?.enabled === true,
+    bundlePrice: row?.bundlePrice ?? '',
+  })).filter((row) => row.marketId);
+}
+
 export default async function collectionPairDiscountCreate(req, res, { session, body }) {
   if (req.method !== 'POST') {
     res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -34,9 +52,9 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
 
   const title = typeof body?.title === 'string' ? body.title.trim() : '';
   const collectionId = typeof body?.collectionId === 'string' ? body.collectionId.trim() : '';
-  const bundlePriceRaw = body?.bundlePrice;
   const startsAt = typeof body?.startsAt === 'string' ? body.startsAt.trim() : '';
   const endsAt = typeof body?.endsAt === 'string' && body.endsAt.trim() ? body.endsAt.trim() : null;
+  const marketRows = normalizeMarketRows(body);
 
   if (!title) {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -50,17 +68,19 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
     return;
   }
 
-  const bundleAmount = typeof bundlePriceRaw === 'number'
-    ? bundlePriceRaw
-    : parseFloat(String(bundlePriceRaw ?? ''));
-
-  if (!Number.isFinite(bundleAmount) || bundleAmount <= 0) {
+  if (!marketRows?.length) {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ ok: false, error: 'bundlePrice must be greater than zero' }));
+    res.end(JSON.stringify({ ok: false, error: 'marketRows is required' }));
     return;
   }
 
-  const bundlePrice = bundleAmount.toFixed(2);
+  const marketError = validateMarketRows(marketRows);
+  if (marketError) {
+    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ ok: false, error: marketError }));
+    return;
+  }
+
   const effectiveStartsAt = startsAt || new Date().toISOString();
 
   try {
@@ -86,8 +106,8 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
               value: JSON.stringify({
                 collectionIds: [ collectionId ],
                 itemCount: 2,
-                bundlePrice,
                 discountTitle: title,
+                markets: serializeMarketsConfig(marketRows),
               }),
             },
           ],

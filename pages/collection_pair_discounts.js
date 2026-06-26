@@ -1,5 +1,9 @@
 import { LitElement, html, nothing } from 'lit';
 import { gidToId } from '../utils.js';
+import {
+  buildMarketRows,
+  validateMarketRows,
+} from '../utils/collectionPairDiscountConfig.js';
 
 function statusTone(status) {
   if (status === 'ACTIVE') return 'success';
@@ -24,14 +28,15 @@ class CollectionPairDiscountsPage extends LitElement {
   static properties = {
     discounts: { state: true },
     collections: { state: true },
+    marketRows: { state: true },
     loading: { state: true },
     creating: { state: true },
     searchingCollections: { state: true },
+    loadingMarkets: { state: true },
     error: { state: true },
     formError: { state: true },
     functionDeployed: { state: true },
     title: { state: true },
-    bundlePrice: { state: true },
     collectionQuery: { state: true },
     selectedCollectionId: { state: true },
     selectedCollectionTitle: { state: true },
@@ -42,14 +47,15 @@ class CollectionPairDiscountsPage extends LitElement {
     super();
     this.discounts = [];
     this.collections = [];
+    this.marketRows = [];
     this.loading = false;
     this.creating = false;
     this.searchingCollections = false;
+    this.loadingMarkets = false;
     this.error = null;
     this.formError = null;
     this.functionDeployed = true;
     this.title = '';
-    this.bundlePrice = '';
     this.collectionQuery = '';
     this.selectedCollectionId = '';
     this.selectedCollectionTitle = '';
@@ -71,8 +77,11 @@ class CollectionPairDiscountsPage extends LitElement {
   async connectedCallback() {
     super.connectedCallback();
     if (!this.shop) return;
-    await this.loadDiscounts();
-    await this.searchCollections();
+    await Promise.all([
+      this.loadDiscounts(),
+      this.searchCollections(),
+      this.loadMarkets(),
+    ]);
   }
 
   async apiGet(path, params = {}) {
@@ -114,6 +123,24 @@ class CollectionPairDiscountsPage extends LitElement {
     }
   }
 
+  async loadMarkets() {
+    if (!this.shop) return;
+    this.loadingMarkets = true;
+    try {
+      const data = await this.apiGet('/api/markets');
+      const allMarkets = (data.markets ?? []).map((market) => ({
+        id: market.id,
+        name: market.name,
+        currencyCode: market.currencyCode ?? '',
+      }));
+      this.marketRows = buildMarketRows(allMarkets, {}, '');
+    } catch (e) {
+      this.formError = e instanceof Error ? e.message : String(e);
+    } finally {
+      this.loadingMarkets = false;
+    }
+  }
+
   async searchCollections() {
     if (!this.shop) return;
     this.searchingCollections = true;
@@ -152,23 +179,42 @@ class CollectionPairDiscountsPage extends LitElement {
     this.selectedCollectionTitle = '';
   }
 
+  onMarketEnabledChange(marketId, enabled) {
+    this.marketRows = this.marketRows.map((row) => (
+      row.marketId === marketId ? { ...row, enabled } : row
+    ));
+  }
+
+  onMarketPriceChange(marketId, value) {
+    this.marketRows = this.marketRows.map((row) => (
+      row.marketId === marketId ? { ...row, bundlePrice: value } : row
+    ));
+  }
+
   async onCreate(event) {
     event.preventDefault();
     this.formError = null;
+
+    const validationError = validateMarketRows(this.marketRows);
+    if (validationError) {
+      this.formError = validationError;
+      return;
+    }
+
     this.creating = true;
 
     try {
       await this.apiPost('/api/collectionPairDiscountCreate', {
         title: this.title,
         collectionId: this.selectedCollectionId,
-        bundlePrice: this.bundlePrice,
+        marketRows: this.marketRows,
         startsAt: this.startsAt ? new Date(this.startsAt).toISOString() : undefined,
       });
 
       this.title = '';
-      this.bundlePrice = '';
       this.clearSelectedCollection();
       this.startsAt = new Date().toISOString().slice(0, 16);
+      await this.loadMarkets();
       await this.loadDiscounts();
     } catch (e) {
       this.formError = e instanceof Error ? e.message : String(e);
@@ -177,8 +223,34 @@ class CollectionPairDiscountsPage extends LitElement {
     }
   }
 
+  renderMarketRow(row) {
+    return html`
+      <s-box padding="small" border="base" borderRadius="base">
+        <s-stack gap="small">
+          <s-checkbox
+            .checked=${ row.enabled }
+            label=${ row.name }
+            @change=${ (event) => this.onMarketEnabledChange(row.marketId, event.currentTarget.checked) }
+          ></s-checkbox>
+          <s-number-field
+            label=${ `Bundle price (${ row.currencyCode || '—' })` }
+            name=${ `marketPrice-${ row.marketId }` }
+            value=${ row.enabled ? String(row.bundlePrice ?? '') : '' }
+            min="0"
+            step="0.01"
+            ?disabled=${ !row.enabled }
+            @input=${ (event) => this.onMarketPriceChange(row.marketId, event.currentTarget.value) }
+          ></s-number-field>
+        </s-stack>
+      </s-box>
+    `;
+  }
+
   renderDiscountRow(discount) {
     const adminHref = adminDiscountHref(discount.discountId);
+    const priceSummary = (discount.enabledPrices ?? []).length
+      ? discount.enabledPrices.join(', ')
+      : discount.bundlePrice;
 
     return html`
       <s-box padding="base" border="base" borderRadius="base">
@@ -189,7 +261,7 @@ class CollectionPairDiscountsPage extends LitElement {
           </s-stack>
           <s-paragraph>
             ${ discount.collectionTitle || 'No collection configured' }
-            ${ discount.bundlePrice ? html` · ${ discount.bundlePrice } bundle` : nothing }
+            ${ priceSummary ? html` · ${ priceSummary } bundle` : nothing }
           </s-paragraph>
           <s-paragraph color="subdued">
             Starts ${ formatDate(discount.startsAt) }
@@ -208,8 +280,8 @@ class CollectionPairDiscountsPage extends LitElement {
     const canCreate = Boolean(
       this.title.trim()
       && this.selectedCollectionId
-      && this.bundlePrice
-      && !this.creating,
+      && !this.creating
+      && !validateMarketRows(this.marketRows),
     );
 
     return html`
@@ -230,15 +302,6 @@ class CollectionPairDiscountsPage extends LitElement {
                 required
                 @input=${ (event) => { this.title = event.currentTarget.value; } }
               ></s-text-field>
-              <s-number-field
-                label="Fixed bundle price"
-                name="bundlePrice"
-                value=${ this.bundlePrice }
-                min="0"
-                step="0.01"
-                required
-                @input=${ (event) => { this.bundlePrice = event.currentTarget.value; } }
-              ></s-number-field>
               <s-text-field
                 label="Starts at"
                 name="startsAt"
@@ -271,9 +334,18 @@ class CollectionPairDiscountsPage extends LitElement {
                   <s-paragraph color="subdued">Selected: ${ this.selectedCollectionTitle }</s-paragraph>
                 ` : nothing }
               </s-stack>
+              <s-heading>Markets</s-heading>
+              ${ this.loadingMarkets ? html`<s-text>Loading markets…</s-text>` : nothing }
+              ${ !this.loadingMarkets && this.marketRows.length ? html`
+                <s-stack gap="base">
+                  ${ this.marketRows.map((row) => this.renderMarketRow(row)) }
+                </s-stack>
+              ` : nothing }
+              ${ !this.loadingMarkets && !this.marketRows.length ? html`
+                <s-paragraph color="subdued">No markets found for this store.</s-paragraph>
+              ` : nothing }
               <s-paragraph color="subdued">
-                Any two products from the collection are sold for the fixed total price.
-                Discount is split proportionally by each product's price.
+                Enable markets individually. Any two products from the collection are sold for that market's fixed total price.
               </s-paragraph>
               <s-button
                 type="submit"

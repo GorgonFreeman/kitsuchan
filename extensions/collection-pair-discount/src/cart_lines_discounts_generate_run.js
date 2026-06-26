@@ -7,6 +7,7 @@ import {
 /**
   * @typedef {import("../generated/api").CartInput} RunInput
   * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
+  * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, markets: Record<string, { enabled?: boolean, bundlePrice?: unknown }>, legacyBundlePrice: unknown }} ParsedConfig
   */
 
 const DEFAULT_ITEM_COUNT = 2;
@@ -29,6 +30,12 @@ export function cartLinesDiscountsGenerateRun(input) {
     return { operations: [] };
   }
 
+  const marketId = input.localization?.market?.id ?? null;
+  const bundlePriceCents = resolveBundlePriceCents(config, marketId);
+  if (bundlePriceCents == null) {
+    return { operations: [] };
+  }
+
   const discountMessage = config.discountTitle?.trim() || null;
 
   const units = expandEligibleUnits(input.cart.lines);
@@ -44,7 +51,7 @@ export function cartLinesDiscountsGenerateRun(input) {
     const unitPricesCents = pair.map((unit) => unit.unitPriceCents);
     const unitDiscountsCents = proportionalDiscountCents(
       unitPricesCents,
-      config.bundlePriceCents,
+      bundlePriceCents,
     );
 
     pair.forEach((unit, index) => {
@@ -94,7 +101,7 @@ export function cartLinesDiscountsGenerateRun(input) {
 
 /**
   * @param {unknown} jsonValue
-  * @returns {{ collectionIds: string[], itemCount: number, bundlePriceCents: number, discountTitle: string } | null}
+  * @returns {ParsedConfig | null}
   */
 function parseConfig(jsonValue) {
   if (!jsonValue || typeof jsonValue !== 'object') {
@@ -117,17 +124,50 @@ function parseConfig(jsonValue) {
     return null;
   }
 
-  const bundlePriceCents = moneyToCents(config.bundlePrice);
-  if (bundlePriceCents == null || bundlePriceCents < 0) {
-    return null;
-  }
+  const markets = config.markets && typeof config.markets === 'object'
+    ? /** @type {ParsedConfig['markets']} */ (config.markets)
+    : {};
 
   return {
     collectionIds,
     itemCount: Math.floor(itemCount),
-    bundlePriceCents,
     discountTitle: typeof config.discountTitle === 'string' ? config.discountTitle : '',
+    markets,
+    legacyBundlePrice: config.bundlePrice,
   };
+}
+
+/**
+  * @param {ParsedConfig} config
+  * @param {string | null} marketId
+  * @returns {number | null}
+  */
+function resolveBundlePriceCents(config, marketId) {
+  if (marketId && config.markets[ marketId ]) {
+    const entry = config.markets[ marketId ];
+    if (entry.enabled === false) {
+      return null;
+    }
+
+    const cents = moneyToCents(entry.bundlePrice);
+    if (cents == null || cents <= 0) {
+      return null;
+    }
+
+    return cents;
+  }
+
+  const hasMarketConfig = Object.keys(config.markets).length > 0;
+  if (hasMarketConfig) {
+    return null;
+  }
+
+  const legacyCents = moneyToCents(config.legacyBundlePrice);
+  if (legacyCents == null || legacyCents <= 0) {
+    return null;
+  }
+
+  return legacyCents;
 }
 
 /**
@@ -179,9 +219,6 @@ function pairUnits(units, itemCount) {
 }
 
 /**
-  * Split a bundle discount across units proportionally to price.
-  * Any leftover cents go to the highest-priced unit.
-  *
   * @param {number[]} unitPricesCents
   * @param {number} bundlePriceCents
   * @returns {number[]}

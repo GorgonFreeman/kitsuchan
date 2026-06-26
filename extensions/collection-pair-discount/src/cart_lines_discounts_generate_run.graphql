@@ -21,6 +21,12 @@ query CartInput($collectionIds: [ID!]) {
       }
     }
   }
+  localization {
+    market {
+      id
+      handle
+    }
+  }
   discount {
     discountClasses
     metafield(namespace: "$app", key: "function-configuration") {
