@@ -1,48 +1,108 @@
+import {
+  DiscountClass,
+  ProductDiscountSelectionStrategy,
+} from '../generated/api';
+
 /**
   * @typedef {import("../generated/api").CartInput} RunInput
   * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
   * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, pricingMode: 'single' | 'markets', markets: Record<string, { enabled?: boolean, bundlePrice?: unknown }>, bundlePrice: unknown }} ParsedConfig
+  * @typedef {{ lineId: string, unitPriceCents: number }} BundleUnit
   */
 
 const DEFAULT_ITEM_COUNT = 2;
 
-/** Set to false before production deploy. Logs appear in app dev + function run STDERR (1 kB cap). */
-const DEBUG_CART_INPUT = true;
-
 /**
-  * Logging-only PoC.
-  *
-  * Keeps current discount configuration parsing/settings context, logs all
-  * currently available cart/line discount signals, and intentionally returns no
-  * discount operations.
-  *
   * @param {RunInput} input
   * @returns {CartLinesDiscountsGenerateRunResult}
   */
 export function cartLinesDiscountsGenerateRun(input) {
+  const hasProductDiscountClass = input.discount.discountClasses.includes(
+    DiscountClass.Product,
+  );
+  if (!hasProductDiscountClass || !input.cart.lines.length) {
+    return { operations: [] };
+  }
+
   const config = parseConfig(input.discount.metafield?.jsonValue);
+  if (!config) {
+    return { operations: [] };
+  }
+
   const marketId = input.localization?.market?.id ?? null;
-  const bundlePriceCents = config ? resolveBundlePriceCents(config, marketId) : null;
-  const lineSummaries = summarizeCartLines(input.cart.lines);
+  const bundlePriceCents = resolveBundlePriceCents(config, marketId);
+  if (bundlePriceCents == null) {
+    return { operations: [] };
+  }
 
-  logEvaluation('poc_snapshot', input, {
-    reason: 'logging_only_poc',
-    hasValidConfig: Boolean(config),
-    config: config
-      ? {
-        collectionIds: config.collectionIds,
-        itemCount: config.itemCount,
-        pricingMode: config.pricingMode,
-        bundlePrice: config.bundlePrice,
-        hasMarkets: Object.keys(config.markets ?? {}).length > 0,
+  const units = expandEligibleUnits(input.cart.lines);
+  if (!units.length) {
+    return { operations: [] };
+  }
+
+  units.sort((left, right) => left.unitPriceCents - right.unitPriceCents);
+
+  const pairs = pairUnits(units, config.itemCount);
+  if (!pairs.length) {
+    return { operations: [] };
+  }
+
+  /** @type {Map<string, { discountedQty: number, totalDiscountCents: number }>} */
+  const lineBuckets = new Map();
+
+  for (const pair of pairs) {
+    const pricesCents = pair.map((unit) => unit.unitPriceCents);
+    const discountsCents = proportionalDiscountCents(pricesCents, bundlePriceCents);
+
+    pair.forEach((unit, index) => {
+      const discountCents = discountsCents[ index ];
+      if (discountCents <= 0) {
+        return;
       }
-      : null,
-    marketId,
-    bundlePriceCents,
-    lines: lineSummaries,
-  });
 
-  return { operations: [] };
+      const bucket = lineBuckets.get(unit.lineId) ?? {
+        discountedQty: 0,
+        totalDiscountCents: 0,
+      };
+      bucket.discountedQty += 1;
+      bucket.totalDiscountCents += discountCents;
+      lineBuckets.set(unit.lineId, bucket);
+    });
+  }
+
+  if (!lineBuckets.size) {
+    return { operations: [] };
+  }
+
+  const discountMessage = config.discountTitle?.trim() || null;
+  const candidates = [ ...lineBuckets.entries() ].map(([ lineId, bucket ]) => ({
+    ...(discountMessage ? { message: discountMessage } : {}),
+    targets: [
+      {
+        cartLine: {
+          id: lineId,
+          quantity: bucket.discountedQty,
+        },
+      },
+    ],
+    value: {
+      fixedAmount: {
+        amount: (bucket.totalDiscountCents / 100).toFixed(2),
+        appliesToEachItem: false,
+      },
+    },
+  }));
+
+  return {
+    operations: [
+      {
+        productDiscountsAdd: {
+          candidates,
+          selectionStrategy: ProductDiscountSelectionStrategy.All,
+        },
+      },
+    ],
+  };
 }
 
 /**
@@ -74,13 +134,11 @@ function parseConfig(jsonValue) {
     ? /** @type {ParsedConfig['markets']} */ (config.markets)
     : {};
 
-  const pricingMode = inferPricingMode(config, markets);
-
   return {
     collectionIds,
     itemCount: Math.floor(itemCount),
     discountTitle: typeof config.discountTitle === 'string' ? config.discountTitle : '',
-    pricingMode,
+    pricingMode: inferPricingMode(config, markets),
     markets,
     bundlePrice: config.bundlePrice,
   };
@@ -100,11 +158,7 @@ function inferPricingMode(config, markets) {
     return 'single';
   }
 
-  if (Object.keys(markets).length > 0) {
-    return 'markets';
-  }
-
-  return 'single';
+  return Object.keys(markets).length > 0 ? 'markets' : 'single';
 }
 
 /**
@@ -133,58 +187,77 @@ function resolveBundlePriceCents(config, marketId) {
 
 /**
   * @param {RunInput['cart']['lines']} lines
-  * @returns {Array<Record<string, unknown>>}
+  * @returns {BundleUnit[]}
   */
-function summarizeCartLines(lines) {
-  return lines.map((line) => {
-    const inCollection = line.merchandise.__typename === 'ProductVariant'
-      ? line.merchandise.product?.inAnyCollection === true
-      : false;
-    const subtotalCents = moneyToCents(line.cost.subtotalAmount.amount) ?? 0;
-    const totalCents = moneyToCents(line.cost.totalAmount.amount) ?? subtotalCents;
-    const totalPerUnitCents = line.quantity > 0 ? Math.round(totalCents / line.quantity) : 0;
+function expandEligibleUnits(lines) {
+  /** @type {BundleUnit[]} */
+  const units = [];
 
-    return {
-      id: line.id,
-      quantity: line.quantity,
-      listPrice: line.cost.amountPerQuantity.amount,
-      subtotalAmount: line.cost.subtotalAmount.amount,
-      totalAmount: line.cost.totalAmount.amount,
-      subtotalCents,
-      totalCents,
-      totalPerUnitCents,
-      discountAllocations: (line.discountAllocations ?? []).map((allocation) => ({
-        amount: allocation.discountedAmount?.amount,
-        targetType: allocation.discountApplication?.targetType,
-      })),
-      inCollection,
-    };
-  });
+  for (const line of lines) {
+    if (line.merchandise.__typename !== 'ProductVariant') {
+      continue;
+    }
+
+    if (!line.merchandise.product?.inAnyCollection) {
+      continue;
+    }
+
+    const unitPriceCents = moneyToCents(line.cost.amountPerQuantity.amount);
+    if (unitPriceCents == null || unitPriceCents <= 0) {
+      continue;
+    }
+
+    for (let i = 0; i < line.quantity; i += 1) {
+      units.push({
+        lineId: line.id,
+        unitPriceCents,
+      });
+    }
+  }
+
+  return units;
 }
 
 /**
-  * @param {string} stage
-  * @param {RunInput} input
-  * @param {Record<string, unknown>} detail
+  * @param {BundleUnit[]} units
+  * @param {number} itemCount
+  * @returns {BundleUnit[][]}
   */
-function logEvaluation(stage, input, detail) {
-  if (!DEBUG_CART_INPUT) {
-    return;
+function pairUnits(units, itemCount) {
+  /** @type {BundleUnit[][]} */
+  const pairs = [];
+
+  for (let i = 0; i + itemCount <= units.length; i += itemCount) {
+    pairs.push(units.slice(i, i + itemCount));
   }
 
-  const payload = {
-    stage,
-    triggeringDiscountCode: input.triggeringDiscountCode ?? null,
-    enteredDiscountCodes: (input.enteredDiscountCodes ?? []).map((entry) => ({
-      code: entry.code,
-      rejectable: entry.rejectable,
-    })),
-    marketId: input.localization?.market?.id ?? null,
-    lineCount: input.cart.lines.length,
-    ...detail,
-  };
+  return pairs;
+}
 
-  console.error('collectionPairDiscount', JSON.stringify(payload));
+/**
+  * @param {number[]} unitPricesCents
+  * @param {number} bundlePriceCents
+  * @returns {number[]}
+  */
+function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
+  const subtotalCents = unitPricesCents.reduce((sum, value) => sum + value, 0);
+  const totalDiscountCents = subtotalCents - bundlePriceCents;
+  if (totalDiscountCents <= 0) {
+    return unitPricesCents.map(() => 0);
+  }
+
+  const discounts = unitPricesCents.map((priceCents) =>
+    Math.floor((totalDiscountCents * priceCents) / subtotalCents),
+  );
+  const assignedCents = discounts.reduce((sum, value) => sum + value, 0);
+  const remainderCents = totalDiscountCents - assignedCents;
+
+  if (remainderCents > 0) {
+    const highestIndex = unitPricesCents.indexOf(Math.max(...unitPricesCents));
+    discounts[ highestIndex ] += remainderCents;
+  }
+
+  return discounts;
 }
 
 /**

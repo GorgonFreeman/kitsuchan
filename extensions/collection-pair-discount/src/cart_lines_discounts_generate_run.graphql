@@ -1,56 +1,16 @@
-query CartInput(
-  $collectionIds: [ID!]
-) {
+query CartInput($collectionIds: [ID!]) {
   cart {
-    # ── Cart-level cost (for order threshold rules) ──────────────────────────
-    cost {
-      subtotalAmount {
-        amount
-        currencyCode
-      }
-      totalAmount {
-        amount
-        currencyCode
-      }
-    }
-
-    # ── Line items ────────────────────────────────────────────────────────────
     lines {
       id
       quantity
-
       cost {
-        subtotalAmount {
-          amount
-          currencyCode
-        }
-        totalAmount {
-          amount
-          currencyCode
-        }
         amountPerQuantity {
           amount
-          currencyCode
-        }
-        compareAtAmountPerQuantity {
-          amount
-          currencyCode
         }
       }
-
-      # Existing allocations — for stacking / anti-double-discount logic
-      discountAllocations {
-        discountedAmount {
-          amount
-          currencyCode
-        }
-      }
-
       merchandise {
         __typename
         ... on ProductVariant {
-          id
-
           product {
             inAnyCollection(ids: $collectionIds)
           }
@@ -63,25 +23,12 @@ query CartInput(
   localization {
     market {
       id
-      handle
-    }
-    country {
-      isoCode
-    }
-    language {
-      isoCode
     }
   }
-
-  # ── Discount metadata ─────────────────────────────────────────────────────
   discount {
     discountClasses
+    metafield(namespace: "$app", key: "function-configuration") {
+      jsonValue
+    }
   }
-
-  # ── Code context ──────────────────────────────────────────────────────────
-  enteredDiscountCodes {
-    code
-    rejectable
-  }
-  triggeringDiscountCode
 }
