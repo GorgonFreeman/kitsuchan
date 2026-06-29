@@ -1,49 +1,139 @@
-query CartInput($collectionIds: [ID!]) {
+query CartInput(
+  $collectionIds: [ID!]
+) {
   cart {
+    # ── Cart-level cost (for order threshold rules) ──────────────────────────
+    cost {
+      subtotalAmount {
+        amount
+        currencyCode
+      }
+      totalAmount {
+        amount
+        currencyCode
+      }
+    }
+
+    # ── Cart attributes ───────────────────────────────────────────────────────
+    attribute(key: "discount_override") {
+      value
+    }
+
+    # ── Buyer identity ────────────────────────────────────────────────────────
+    buyerIdentity {
+      email
+      phone
+      customer {
+        id
+        email
+        numberOfOrders
+        amountSpent {
+          amount
+          currencyCode
+        }
+      }
+      purchasingCompany {
+        company {
+          id
+          name
+        }
+        contact {
+          id
+        }
+        location {
+          id
+          name
+        }
+      }
+    }
+
+    # ── Line items ────────────────────────────────────────────────────────────
     lines {
       id
       quantity
+
+      attribute(key: "line_discount_override") {
+        value
+      }
+
       cost {
         subtotalAmount {
           amount
+          currencyCode
         }
         totalAmount {
           amount
+          currencyCode
         }
         amountPerQuantity {
           amount
+          currencyCode
+        }
+        compareAtAmountPerQuantity {
+          amount
+          currencyCode
         }
       }
+
+      # Existing allocations — for stacking / anti-double-discount logic
       discountAllocations {
         discountedAmount {
           amount
+          currencyCode
         }
         discountApplication {
           targetType
+          allocationMethod
+          targetSelection
+          value {
+            ... on MoneyV2 {
+              amount
+              currencyCode
+            }
+          }
         }
       }
+
       merchandise {
         __typename
         ... on ProductVariant {
+          id
+          sku
+          title
+
           product {
+            id
+            title
+            vendor
+            productType
+            handle
             inAnyCollection(ids: $collectionIds)
           }
         }
       }
     }
   }
+
+  # ── Localization ──────────────────────────────────────────────────────────
   localization {
     market {
       id
       handle
     }
-  }
-  discount {
-    discountClasses
-    metafield(namespace: "$app", key: "function-configuration") {
-      jsonValue
+    country {
+      isoCode
+    }
+    language {
+      isoCode
     }
   }
+
+  # ── Discount metadata ─────────────────────────────────────────────────────
+  discount {
+    discountClasses
+  }
+
+  # ── Code context ──────────────────────────────────────────────────────────
   enteredDiscountCodes {
     code
     rejectable
