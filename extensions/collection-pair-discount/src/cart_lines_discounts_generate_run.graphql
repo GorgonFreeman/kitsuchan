@@ -7,6 +7,9 @@ query CartInput($collectionIds: [ID!]) {
         subtotalAmount {
           amount
         }
+        totalAmount {
+          amount
+        }
         amountPerQuantity {
           amount
         }
@@ -41,4 +44,9 @@ query CartInput($collectionIds: [ID!]) {
       jsonValue
     }
   }
+  enteredDiscountCodes {
+    code
+    rejectable
+  }
+  triggeringDiscountCode
 }

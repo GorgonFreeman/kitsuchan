@@ -1,108 +1,48 @@
-import {
-  DiscountClass,
-  ProductDiscountSelectionStrategy,
-} from '../generated/api';
-
-
 /**
   * @typedef {import("../generated/api").CartInput} RunInput
   * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
   * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, pricingMode: 'single' | 'markets', markets: Record<string, { enabled?: boolean, bundlePrice?: unknown }>, bundlePrice: unknown }} ParsedConfig
-  * @typedef {{ lineId: string, unitPriceCents: number }} BundleUnit
   */
 
 const DEFAULT_ITEM_COUNT = 2;
 
+/** Set to false before production deploy. Logs appear in app dev + function run STDERR (1 kB cap). */
+const DEBUG_CART_INPUT = true;
+
 /**
+  * Logging-only PoC.
+  *
+  * Keeps current discount configuration parsing/settings context, logs all
+  * currently available cart/line discount signals, and intentionally returns no
+  * discount operations.
+  *
   * @param {RunInput} input
   * @returns {CartLinesDiscountsGenerateRunResult}
   */
 export function cartLinesDiscountsGenerateRun(input) {
-  const hasProductDiscountClass = input.discount.discountClasses.includes(
-    DiscountClass.Product,
-  );
-
-  if (!hasProductDiscountClass || !input.cart.lines.length) {
-    return { operations: [] };
-  }
-
   const config = parseConfig(input.discount.metafield?.jsonValue);
-  if (!config) {
-    return { operations: [] };
-  }
-
   const marketId = input.localization?.market?.id ?? null;
-  const bundlePriceCents = resolveBundlePriceCents(config, marketId);
-  if (bundlePriceCents == null) {
-    return { operations: [] };
-  }
+  const bundlePriceCents = config ? resolveBundlePriceCents(config, marketId) : null;
+  const lineSummaries = summarizeCartLines(input.cart.lines);
 
-  const discountMessage = config.discountTitle?.trim() || null;
-
-  const units = expandEligibleUnits(input.cart.lines);
-  const pairs = pairUnits(units, config.itemCount);
-  if (!pairs.length) {
-    return { operations: [] };
-  }
-
-  /** @type {Map<string, { discountedQty: number, totalDiscountCents: number }>} */
-  const lineBuckets = new Map();
-
-  for (const pair of pairs) {
-    const unitPricesCents = pair.map((unit) => unit.unitPriceCents);
-    const unitDiscountsCents = proportionalDiscountCents(
-      unitPricesCents,
-      bundlePriceCents,
-    );
-
-    pair.forEach((unit, index) => {
-      const discountCents = unitDiscountsCents[ index ];
-      if (discountCents <= 0) {
-        return;
+  logEvaluation('poc_snapshot', input, {
+    reason: 'logging_only_poc',
+    hasValidConfig: Boolean(config),
+    config: config
+      ? {
+        collectionIds: config.collectionIds,
+        itemCount: config.itemCount,
+        pricingMode: config.pricingMode,
+        bundlePrice: config.bundlePrice,
+        hasMarkets: Object.keys(config.markets ?? {}).length > 0,
       }
+      : null,
+    marketId,
+    bundlePriceCents,
+    lines: lineSummaries,
+  });
 
-      const bucket = lineBuckets.get(unit.lineId) ?? {
-        discountedQty: 0,
-        totalDiscountCents: 0,
-      };
-      bucket.discountedQty += 1;
-      bucket.totalDiscountCents += discountCents;
-      lineBuckets.set(unit.lineId, bucket);
-    });
-  }
-
-  const candidates = [ ...lineBuckets.entries() ].map(([ lineId, bucket ]) => ({
-    ...(discountMessage ? { message: discountMessage } : {}),
-    targets: [
-      {
-        cartLine: {
-          id: lineId,
-          quantity: bucket.discountedQty,
-        },
-      },
-    ],
-    value: {
-      fixedAmount: {
-        amount: (bucket.totalDiscountCents / 100).toFixed(2),
-        appliesToEachItem: false,
-      },
-    },
-  }));
-
-  if (!candidates.length) {
-    return { operations: [] };
-  }
-
-  return {
-    operations: [
-      {
-        productDiscountsAdd: {
-          candidates,
-          selectionStrategy: ProductDiscountSelectionStrategy.All,
-        },
-      },
-    ],
-  };
+  return { operations: [] };
 }
 
 /**
@@ -175,11 +115,7 @@ function inferPricingMode(config, markets) {
 function resolveBundlePriceCents(config, marketId) {
   if (config.pricingMode === 'single') {
     const cents = moneyToCents(config.bundlePrice);
-    if (cents == null || cents <= 0) {
-      return null;
-    }
-
-    return cents;
+    return cents != null && cents > 0 ? cents : null;
   }
 
   if (!marketId || !config.markets[ marketId ]) {
@@ -192,112 +128,63 @@ function resolveBundlePriceCents(config, marketId) {
   }
 
   const cents = moneyToCents(entry.bundlePrice);
-  if (cents == null || cents <= 0) {
-    return null;
-  }
-
-  return cents;
+  return cents != null && cents > 0 ? cents : null;
 }
 
 /**
   * @param {RunInput['cart']['lines']} lines
-  * @returns {BundleUnit[]}
+  * @returns {Array<Record<string, unknown>>}
   */
-function expandEligibleUnits(lines) {
-  /** @type {BundleUnit[]} */
-  const units = [];
+function summarizeCartLines(lines) {
+  return lines.map((line) => {
+    const inCollection = line.merchandise.__typename === 'ProductVariant'
+      ? line.merchandise.product?.inAnyCollection === true
+      : false;
+    const subtotalCents = moneyToCents(line.cost.subtotalAmount.amount) ?? 0;
+    const totalCents = moneyToCents(line.cost.totalAmount.amount) ?? subtotalCents;
+    const totalPerUnitCents = line.quantity > 0 ? Math.round(totalCents / line.quantity) : 0;
 
-  for (const line of lines) {
-    if (line.merchandise.__typename !== 'ProductVariant') {
-      continue;
-    }
-
-    if (!line.merchandise.product?.inAnyCollection) {
-      continue;
-    }
-
-    if (lineHasDiscount(line)) {
-      continue;
-    }
-
-    const unitPriceCents = moneyToCents(line.cost.amountPerQuantity.amount);
-    if (unitPriceCents == null || unitPriceCents <= 0) {
-      continue;
-    }
-
-    for (let i = 0; i < line.quantity; i += 1) {
-      units.push({
-        lineId: line.id,
-        unitPriceCents,
-      });
-    }
-  }
-
-  return units;
+    return {
+      id: line.id,
+      quantity: line.quantity,
+      listPrice: line.cost.amountPerQuantity.amount,
+      subtotalAmount: line.cost.subtotalAmount.amount,
+      totalAmount: line.cost.totalAmount.amount,
+      subtotalCents,
+      totalCents,
+      totalPerUnitCents,
+      discountAllocations: (line.discountAllocations ?? []).map((allocation) => ({
+        amount: allocation.discountedAmount?.amount,
+        targetType: allocation.discountApplication?.targetType,
+      })),
+      inCollection,
+    };
+  });
 }
 
 /**
-  * @param {RunInput['cart']['lines'][number]} line
-  * @returns {boolean}
+  * @param {string} stage
+  * @param {RunInput} input
+  * @param {Record<string, unknown>} detail
   */
-function lineHasDiscount(line) {
-  const allocations = line.discountAllocations ?? [];
-
-  for (const allocation of allocations) {
-    const cents = moneyToCents(allocation.discountedAmount?.amount);
-    if (cents != null && cents > 0) {
-      return true;
-    }
+function logEvaluation(stage, input, detail) {
+  if (!DEBUG_CART_INPUT) {
+    return;
   }
 
-  return false;
-}
+  const payload = {
+    stage,
+    triggeringDiscountCode: input.triggeringDiscountCode ?? null,
+    enteredDiscountCodes: (input.enteredDiscountCodes ?? []).map((entry) => ({
+      code: entry.code,
+      rejectable: entry.rejectable,
+    })),
+    marketId: input.localization?.market?.id ?? null,
+    lineCount: input.cart.lines.length,
+    ...detail,
+  };
 
-/**
-  * @param {BundleUnit[]} units
-  * @param {number} itemCount
-  * @returns {BundleUnit[][]}
-  */
-function pairUnits(units, itemCount) {
-  /** @type {BundleUnit[][]} */
-  const pairs = [];
-
-  for (let i = 0; i + itemCount <= units.length; i += itemCount) {
-    pairs.push(units.slice(i, i + itemCount));
-  }
-
-  return pairs;
-}
-
-/**
-  * @param {number[]} unitPricesCents
-  * @param {number} bundlePriceCents
-  * @returns {number[]}
-  */
-function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
-  const subtotalCents = unitPricesCents.reduce((sum, price) => sum + price, 0);
-  const totalDiscountCents = Math.max(0, subtotalCents - bundlePriceCents);
-
-  if (totalDiscountCents === 0) {
-    return unitPricesCents.map(() => 0);
-  }
-
-  if (subtotalCents === 0) {
-    return unitPricesCents.map(() => 0);
-  }
-
-  const discounts = unitPricesCents.map((price) =>
-    Math.floor((totalDiscountCents * price) / subtotalCents),
-  );
-  const assigned = discounts.reduce((sum, value) => sum + value, 0);
-  const remainder = totalDiscountCents - assigned;
-
-  if (remainder > 0) {
-    const highestIndex = unitPricesCents.indexOf(Math.max(...unitPricesCents));
-    discounts[ highestIndex ] += remainder;
-  }
-
-  return discounts;
+  console.error('collectionPairDiscount', JSON.stringify(payload));
 }
 
 /**
