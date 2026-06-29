@@ -14,47 +14,10 @@ query CartInput(
       }
     }
 
-    # ── Cart attributes ───────────────────────────────────────────────────────
-    attribute(key: "discount_override") {
-      value
-    }
-
-    # ── Buyer identity ────────────────────────────────────────────────────────
-    buyerIdentity {
-      email
-      phone
-      customer {
-        id
-        email
-        numberOfOrders
-        amountSpent {
-          amount
-          currencyCode
-        }
-      }
-      purchasingCompany {
-        company {
-          id
-          name
-        }
-        contact {
-          id
-        }
-        location {
-          id
-          name
-        }
-      }
-    }
-
     # ── Line items ────────────────────────────────────────────────────────────
     lines {
       id
       quantity
-
-      attribute(key: "line_discount_override") {
-        value
-      }
 
       cost {
         subtotalAmount {
@@ -81,32 +44,14 @@ query CartInput(
           amount
           currencyCode
         }
-        discountApplication {
-          targetType
-          allocationMethod
-          targetSelection
-          value {
-            ... on MoneyV2 {
-              amount
-              currencyCode
-            }
-          }
-        }
       }
 
       merchandise {
         __typename
         ... on ProductVariant {
           id
-          sku
-          title
 
           product {
-            id
-            title
-            vendor
-            productType
-            handle
             inAnyCollection(ids: $collectionIds)
           }
         }
