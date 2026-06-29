@@ -1,0 +1,103 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/10",
+            "quantity": 1,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "40.0"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "inAnyCollection": true
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/5",
+            "quantity": 1,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "35.0"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "inAnyCollection": true
+              }
+            }
+          }
+        ]
+      },
+      "presentmentCurrencyRate": "0.65",
+      "discount": {
+        "discountClasses": ["PRODUCT"],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": ["gid://shopify/Collection/1"],
+            "itemCount": 2,
+            "discountTitle": "Converted bundle",
+            "pricingMode": "single",
+            "bundlePrice": "100.00"
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": ["gid://shopify/Collection/1"]
+    },
+    "output": {
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "message": "Converted bundle",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/10",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "5.34",
+                    "appliesToEachItem": false
+                  }
+                }
+              },
+              {
+                "message": "Converted bundle",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/5",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "4.66",
+                    "appliesToEachItem": false
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "ALL"
+          }
+        }
+      ]
+    }
+  }
+}

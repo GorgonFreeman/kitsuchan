@@ -25,6 +25,7 @@ query CartInput($collectionIds: [ID!]) {
       id
     }
   }
+  presentmentCurrencyRate
   discount {
     discountClasses
     metafield(namespace: "$app", key: "function-configuration") {

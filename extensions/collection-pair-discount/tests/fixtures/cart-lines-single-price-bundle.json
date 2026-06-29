@@ -1,0 +1,108 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/10",
+            "quantity": 1,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "10.0"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "inAnyCollection": true
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/5",
+            "quantity": 1,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "5.0"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "inAnyCollection": true
+              }
+            }
+          }
+        ]
+      },
+      "localization": {
+        "market": {
+          "id": "gid://shopify/Market/1"
+        }
+      },
+      "presentmentCurrencyRate": "1",
+      "discount": {
+        "discountClasses": ["PRODUCT"],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": ["gid://shopify/Collection/1"],
+            "itemCount": 2,
+            "discountTitle": "Summer tee bundle",
+            "pricingMode": "single",
+            "bundlePrice": "12.00"
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": ["gid://shopify/Collection/1"]
+    },
+    "output": {
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "message": "Summer tee bundle",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/10",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "2.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              },
+              {
+                "message": "Summer tee bundle",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/5",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "1.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "ALL"
+          }
+        }
+      ]
+    }
+  }
+}

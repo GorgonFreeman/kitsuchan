@@ -30,7 +30,8 @@ export function cartLinesDiscountsGenerateRun(input) {
   }
 
   const marketId = input.localization?.market?.id ?? null;
-  const bundlePriceCents = resolveBundlePriceCents(config, marketId);
+  const presentmentCurrencyRate = parsePresentmentCurrencyRate(input.presentmentCurrencyRate);
+  const bundlePriceCents = resolveBundlePriceCents(config, marketId, presentmentCurrencyRate);
   if (bundlePriceCents == null) {
     return { operations: [] };
   }
@@ -164,12 +165,17 @@ function inferPricingMode(config, markets) {
 /**
   * @param {ParsedConfig} config
   * @param {string | null} marketId
+  * @param {number} presentmentCurrencyRate
   * @returns {number | null}
   */
-function resolveBundlePriceCents(config, marketId) {
+function resolveBundlePriceCents(config, marketId, presentmentCurrencyRate) {
   if (config.pricingMode === 'single') {
-    const cents = moneyToCents(config.bundlePrice);
-    return cents != null && cents > 0 ? cents : null;
+    const shopCurrencyCents = moneyToCents(config.bundlePrice);
+    if (shopCurrencyCents == null || shopCurrencyCents <= 0) {
+      return null;
+    }
+
+    return Math.round(shopCurrencyCents * presentmentCurrencyRate);
   }
 
   if (!marketId || !config.markets[ marketId ]) {
@@ -183,6 +189,19 @@ function resolveBundlePriceCents(config, marketId) {
 
   const cents = moneyToCents(entry.bundlePrice);
   return cents != null && cents > 0 ? cents : null;
+}
+
+/**
+  * @param {unknown} value
+  * @returns {number}
+  */
+function parsePresentmentCurrencyRate(value) {
+  const rate = parseFloat(String(value ?? '1'));
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return 1;
+  }
+
+  return rate;
 }
 
 /**
