@@ -18,7 +18,7 @@ topics = ["app/uninstalled"]
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_metaobjects,read_products,read_themes,write_products,write_themes,read_customers,write_discounts,read_discounts"
+scopes = "read_metaobjects,read_products,read_themes,write_products,write_themes,read_customers,write_discounts,read_discounts,read_markets"
 
 [discount.metafields.app.function-configuration]
 type = "json"
