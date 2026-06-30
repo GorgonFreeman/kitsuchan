@@ -9,11 +9,9 @@
             "id": "gid://shopify/CartLine/10",
             "quantity": 1,
             "cost": {
-              "subtotalAmount": {
-                "amount": "10.0"
-              },
               "amountPerQuantity": {
-                "amount": "10.0"
+                "amount": "10.0",
+                "currencyCode": "USD"
               }
             },
             "merchandise": {
@@ -21,18 +19,15 @@
               "product": {
                 "inAnyCollection": true
               }
-            },
-            "discountAllocations": []
+            }
           },
           {
             "id": "gid://shopify/CartLine/5",
             "quantity": 1,
             "cost": {
-              "subtotalAmount": {
-                "amount": "5.0"
-              },
               "amountPerQuantity": {
-                "amount": "5.0"
+                "amount": "5.0",
+                "currencyCode": "USD"
               }
             },
             "merchandise": {
@@ -40,15 +35,22 @@
               "product": {
                 "inAnyCollection": true
               }
-            },
-            "discountAllocations": []
+            }
           }
         ]
       },
       "localization": {
         "market": {
-          "id": "gid://shopify/Market/1",
-          "handle": "us"
+          "id": "gid://shopify/Market/1"
+        }
+      },
+      "presentmentCurrencyRate": "1",
+      "shop": {
+        "metafield": {
+          "jsonValue": {
+            "base": "USD",
+            "USD": 1
+          }
         }
       },
       "discount": {
@@ -59,10 +61,12 @@
             "itemCount": 2,
             "discountTitle": "Summer tee bundle",
             "pricingMode": "markets",
+            "shopCurrencyCode": "USD",
             "markets": {
               "gid://shopify/Market/1": {
                 "enabled": true,
-                "bundlePrice": "12.00"
+                "bundlePrice": "12.00",
+                "currencyCode": "USD"
               }
             }
           }
@@ -82,14 +86,14 @@
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/10",
+                      "id": "gid://shopify/CartLine/5",
                       "quantity": 1
                     }
                   }
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "2.00",
+                    "amount": "1.00",
                     "appliesToEachItem": false
                   }
                 }
@@ -99,14 +103,14 @@
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/5",
+                      "id": "gid://shopify/CartLine/10",
                       "quantity": 1
                     }
                   }
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "1.00",
+                    "amount": "2.00",
                     "appliesToEachItem": false
                   }
                 }

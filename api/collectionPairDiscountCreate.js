@@ -58,6 +58,9 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
   const endsAt = typeof body?.endsAt === 'string' && body.endsAt.trim() ? body.endsAt.trim() : null;
   const marketRows = normalizeMarketRows(body);
   const bundlePrice = body?.bundlePrice;
+  const shopCurrencyCode = typeof body?.shopCurrencyCode === 'string'
+    ? body.shopCurrencyCode.trim()
+    : '';
   const pricingMode = body?.pricingMode === PRICING_MODE_MARKETS
     ? PRICING_MODE_MARKETS
     : PRICING_MODE_SINGLE;
@@ -92,6 +95,7 @@ export default async function collectionPairDiscountCreate(req, res, { session, 
     pricingMode,
     marketRows,
     bundlePrice,
+    shopCurrencyCode,
   });
 
   try {

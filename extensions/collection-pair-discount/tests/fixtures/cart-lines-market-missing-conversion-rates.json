@@ -1,0 +1,78 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/10",
+            "quantity": 1,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "900.0",
+                "currencyCode": "SEK"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "inAnyCollection": true
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/5",
+            "quantity": 1,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "850.0",
+                "currencyCode": "SEK"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "inAnyCollection": true
+              }
+            }
+          }
+        ]
+      },
+      "localization": {
+        "market": {
+          "id": "gid://shopify/Market/1"
+        }
+      },
+      "presentmentCurrencyRate": "7.2",
+      "shop": {
+        "metafield": null
+      },
+      "discount": {
+        "discountClasses": ["PRODUCT"],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": ["gid://shopify/Collection/1"],
+            "itemCount": 2,
+            "discountTitle": "Missing rates",
+            "pricingMode": "markets",
+            "shopCurrencyCode": "GBP",
+            "markets": {
+              "gid://shopify/Market/1": {
+                "enabled": true,
+                "bundlePrice": "80.00",
+                "currencyCode": "EUR"
+              }
+            }
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": ["gid://shopify/Collection/1"]
+    },
+    "output": {
+      "operations": []
+    }
+  }
+}

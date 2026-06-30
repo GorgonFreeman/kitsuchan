@@ -10,7 +10,8 @@
             "quantity": 1,
             "cost": {
               "amountPerQuantity": {
-                "amount": "40.0"
+                "amount": "40.0",
+                "currencyCode": "USD"
               }
             },
             "merchandise": {
@@ -25,7 +26,8 @@
             "quantity": 1,
             "cost": {
               "amountPerQuantity": {
-                "amount": "35.0"
+                "amount": "35.0",
+                "currencyCode": "USD"
               }
             },
             "merchandise": {
@@ -38,6 +40,9 @@
         ]
       },
       "presentmentCurrencyRate": "0.65",
+      "shop": {
+        "metafield": null
+      },
       "discount": {
         "discountClasses": ["PRODUCT"],
         "metafield": {
@@ -64,14 +69,14 @@
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/10",
+                      "id": "gid://shopify/CartLine/5",
                       "quantity": 1
                     }
                   }
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "5.34",
+                    "amount": "4.66",
                     "appliesToEachItem": false
                   }
                 }
@@ -81,14 +86,14 @@
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/5",
+                      "id": "gid://shopify/CartLine/10",
                       "quantity": 1
                     }
                   }
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "4.66",
+                    "amount": "5.34",
                     "appliesToEachItem": false
                   }
                 }

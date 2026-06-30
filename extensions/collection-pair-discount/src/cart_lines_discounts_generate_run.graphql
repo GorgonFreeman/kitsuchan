@@ -6,6 +6,7 @@ query CartInput($collectionIds: [ID!]) {
       cost {
         amountPerQuantity {
           amount
+          currencyCode
         }
       }
       merchandise {
@@ -19,13 +20,17 @@ query CartInput($collectionIds: [ID!]) {
     }
   }
 
-  # ── Localization ──────────────────────────────────────────────────────────
   localization {
     market {
       id
     }
   }
   presentmentCurrencyRate
+  shop {
+    metafield(namespace: "global", key: "conversion_rates") {
+      jsonValue
+    }
+  }
   discount {
     discountClasses
     metafield(namespace: "$app", key: "function-configuration") {

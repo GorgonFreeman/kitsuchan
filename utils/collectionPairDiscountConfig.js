@@ -83,7 +83,7 @@ export function buildMarketRows(allMarkets, savedMarkets) {
     return {
       marketId: market.id,
       name: market.name,
-      currencyCode: market.currencyCode ?? '',
+      currencyCode: saved?.currencyCode ?? market.currencyCode ?? '',
       enabled: hasSavedMarkets ? saved?.enabled === true : false,
       bundlePrice: saved?.bundlePrice != null ? saved.bundlePrice : '',
     };
@@ -94,11 +94,14 @@ export function buildMarketRows(allMarkets, savedMarkets) {
   * @param {MarketRow[]} marketRows
   */
 export function serializeMarketsConfig(marketRows) {
-  /** @type {Record<string, { enabled: boolean, bundlePrice?: string }>} */
+  /** @type {Record<string, { enabled: boolean, bundlePrice?: string, currencyCode?: string }>} */
   const markets = {};
 
   for (const row of marketRows) {
     const entry = { enabled: row.enabled === true };
+    if (row.currencyCode) {
+      entry.currencyCode = row.currencyCode;
+    }
     if (entry.enabled) {
       const amount = typeof row.bundlePrice === 'number'
         ? row.bundlePrice
@@ -168,6 +171,7 @@ export function validatePricingConfig(input) {
   *   pricingMode: 'single' | 'markets',
   *   marketRows?: MarketRow[],
   *   bundlePrice?: number | string,
+  *   shopCurrencyCode?: string,
   * }} input
   */
 export function buildFunctionConfiguration(input) {
@@ -176,6 +180,7 @@ export function buildFunctionConfiguration(input) {
     itemCount: input.itemCount ?? 2,
     discountTitle: input.discountTitle ?? '',
     pricingMode: input.pricingMode,
+    ...(input.shopCurrencyCode ? { shopCurrencyCode: input.shopCurrencyCode } : {}),
   };
 
   if (isSinglePriceMode(input.pricingMode)) {

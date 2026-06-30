@@ -10,8 +10,8 @@
             "quantity": 1,
             "cost": {
               "amountPerQuantity": {
-                "amount": "10.0",
-                "currencyCode": "USD"
+                "amount": "900.0",
+                "currencyCode": "SEK"
               }
             },
             "merchandise": {
@@ -26,8 +26,8 @@
             "quantity": 1,
             "cost": {
               "amountPerQuantity": {
-                "amount": "5.0",
-                "currencyCode": "USD"
+                "amount": "850.0",
+                "currencyCode": "SEK"
               }
             },
             "merchandise": {
@@ -39,9 +39,25 @@
           }
         ]
       },
-      "presentmentCurrencyRate": "1",
+      "localization": {
+        "market": {
+          "id": "gid://shopify/Market/1"
+        }
+      },
+      "presentmentCurrencyRate": "12.856279695879197",
       "shop": {
-        "metafield": null
+        "metafield": {
+          "jsonValue": {
+            "AED": 4.863174562030157,
+            "CHF": 1.0707761595622334,
+            "DKK": 8.679651433113621,
+            "EUR": 1.1612365336812225,
+            "GBP": 1,
+            "HUF": 411.61071539306107,
+            "PLN": 4.97968289242935,
+            "SEK": 12.856279695879197
+          }
+        }
       },
       "discount": {
         "discountClasses": ["PRODUCT"],
@@ -49,9 +65,16 @@
           "jsonValue": {
             "collectionIds": ["gid://shopify/Collection/1"],
             "itemCount": 2,
-            "discountTitle": "Summer tee bundle",
-            "pricingMode": "single",
-            "bundlePrice": "12.00"
+            "discountTitle": "EUR market bundle",
+            "pricingMode": "markets",
+            "shopCurrencyCode": "GBP",
+            "markets": {
+              "gid://shopify/Market/1": {
+                "enabled": true,
+                "bundlePrice": "80.00",
+                "currencyCode": "EUR"
+              }
+            }
           }
         }
       }
@@ -65,7 +88,7 @@
           "productDiscountsAdd": {
             "candidates": [
               {
-                "message": "Summer tee bundle",
+                "message": "EUR market bundle",
                 "targets": [
                   {
                     "cartLine": {
@@ -76,13 +99,13 @@
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "1.00",
+                    "amount": "419.81",
                     "appliesToEachItem": false
                   }
                 }
               },
               {
-                "message": "Summer tee bundle",
+                "message": "EUR market bundle",
                 "targets": [
                   {
                     "cartLine": {
@@ -93,7 +116,7 @@
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "2.00",
+                    "amount": "444.52",
                     "appliesToEachItem": false
                   }
                 }

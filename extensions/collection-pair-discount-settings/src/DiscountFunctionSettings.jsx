@@ -260,6 +260,7 @@ function useExtensionData() {
       pricingMode,
       marketRows,
       bundlePrice,
+      shopCurrencyCode,
     });
 
     await applyMetafieldChange({
@@ -378,7 +379,7 @@ function buildMarketRows(allMarkets, savedMarkets) {
     return {
       marketId: market.id,
       name: market.name,
-      currencyCode: market.currencyCode ?? '',
+      currencyCode: saved?.currencyCode ?? market.currencyCode ?? '',
       enabled: hasSavedMarkets ? saved?.enabled === true : false,
       bundlePrice: saved?.bundlePrice != null ? saved.bundlePrice : '',
     };
@@ -386,11 +387,14 @@ function buildMarketRows(allMarkets, savedMarkets) {
 }
 
 function serializeMarketsConfig(marketRows) {
-  /** @type {Record<string, { enabled: boolean, bundlePrice?: string }>} */
+  /** @type {Record<string, { enabled: boolean, bundlePrice?: string, currencyCode?: string }>} */
   const markets = {};
 
   for (const row of marketRows) {
     const entry = { enabled: row.enabled === true };
+    if (row.currencyCode) {
+      entry.currencyCode = row.currencyCode;
+    }
     if (entry.enabled) {
       const amount = typeof row.bundlePrice === 'number'
         ? row.bundlePrice
@@ -443,12 +447,13 @@ function validatePricingConfig({ pricingMode, marketRows, bundlePrice, marketsLo
   return validateMarketRows(marketRows);
 }
 
-function buildFunctionConfiguration({ collectionIds, discountTitle, pricingMode, marketRows, bundlePrice }) {
+function buildFunctionConfiguration({ collectionIds, discountTitle, pricingMode, marketRows, bundlePrice, shopCurrencyCode }) {
   const payload = {
     collectionIds,
     itemCount: 2,
     discountTitle,
     pricingMode,
+    ...(shopCurrencyCode ? { shopCurrencyCode } : {}),
   };
 
   if (pricingMode === PRICING_MODE_SINGLE) {

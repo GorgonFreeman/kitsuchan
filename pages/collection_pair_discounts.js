@@ -245,6 +245,7 @@ class CollectionPairDiscountsPage extends LitElement {
         pricingMode: this.pricingMode,
         marketRows: this.marketRows,
         bundlePrice: this.bundlePrice,
+        shopCurrencyCode: this.shopCurrencyCode,
         startsAt: this.startsAt ? new Date(this.startsAt).toISOString() : undefined,
       });
 

@@ -2,11 +2,17 @@ import {
   DiscountClass,
   ProductDiscountSelectionStrategy,
 } from '../generated/api';
+import {
+  cartPresentmentCurrencyCode,
+  parseConversionRates,
+  parseShopCurrencyCode,
+  resolveMarketBundlePresentmentCents,
+} from './marketCurrency.js';
 
 /**
   * @typedef {import("../generated/api").CartInput} RunInput
   * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
-  * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, pricingMode: 'single' | 'markets', markets: Record<string, { enabled?: boolean, bundlePrice?: unknown }>, bundlePrice: unknown }} ParsedConfig
+  * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, pricingMode: 'single' | 'markets', shopCurrencyCode: string, markets: Record<string, { enabled?: boolean, bundlePrice?: unknown, currencyCode?: string }>, bundlePrice: unknown }} ParsedConfig
   * @typedef {{ lineId: string, unitPriceCents: number }} BundleUnit
   */
 
@@ -31,7 +37,20 @@ export function cartLinesDiscountsGenerateRun(input) {
 
   const marketId = input.localization?.market?.id ?? null;
   const presentmentCurrencyRate = parsePresentmentCurrencyRate(input.presentmentCurrencyRate);
-  const bundlePriceCents = resolveBundlePriceCents(config, marketId, presentmentCurrencyRate);
+  const conversionRates = parseConversionRates(input.shop?.metafield?.jsonValue);
+  const shopCurrencyCode = parseShopCurrencyCode(
+    input.shop?.metafield?.jsonValue,
+    config.shopCurrencyCode,
+  );
+  const cartCurrencyCode = cartPresentmentCurrencyCode(input.cart.lines);
+  const bundlePriceCents = resolveBundlePriceCents({
+    config,
+    marketId,
+    presentmentCurrencyRate,
+    cartCurrencyCode,
+    shopCurrencyCode,
+    conversionRates,
+  });
   if (bundlePriceCents == null) {
     return { operations: [] };
   }
@@ -140,6 +159,7 @@ function parseConfig(jsonValue) {
     itemCount: Math.floor(itemCount),
     discountTitle: typeof config.discountTitle === 'string' ? config.discountTitle : '',
     pricingMode: inferPricingMode(config, markets),
+    shopCurrencyCode: typeof config.shopCurrencyCode === 'string' ? config.shopCurrencyCode : '',
     markets,
     bundlePrice: config.bundlePrice,
   };
@@ -163,12 +183,26 @@ function inferPricingMode(config, markets) {
 }
 
 /**
-  * @param {ParsedConfig} config
-  * @param {string | null} marketId
-  * @param {number} presentmentCurrencyRate
+  * @param {{
+  *   config: ParsedConfig,
+  *   marketId: string | null,
+  *   presentmentCurrencyRate: number,
+  *   cartCurrencyCode: string,
+  *   shopCurrencyCode: string,
+  *   conversionRates: Record<string, number>,
+  * }} input
   * @returns {number | null}
   */
-function resolveBundlePriceCents(config, marketId, presentmentCurrencyRate) {
+function resolveBundlePriceCents(input) {
+  const {
+    config,
+    marketId,
+    presentmentCurrencyRate,
+    cartCurrencyCode,
+    shopCurrencyCode,
+    conversionRates,
+  } = input;
+
   if (config.pricingMode === 'single') {
     const shopCurrencyCents = moneyToCents(config.bundlePrice);
     if (shopCurrencyCents == null || shopCurrencyCents <= 0) {
@@ -188,7 +222,18 @@ function resolveBundlePriceCents(config, marketId, presentmentCurrencyRate) {
   }
 
   const cents = moneyToCents(entry.bundlePrice);
-  return cents != null && cents > 0 ? cents : null;
+  if (cents == null || cents <= 0) {
+    return null;
+  }
+
+  return resolveMarketBundlePresentmentCents({
+    bundlePriceCents: cents,
+    configCurrencyCode: typeof entry.currencyCode === 'string' ? entry.currencyCode : '',
+    cartCurrencyCode,
+    shopCurrencyCode,
+    presentmentCurrencyRate,
+    conversionRates,
+  });
 }
 
 /**
