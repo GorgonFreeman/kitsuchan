@@ -47,6 +47,7 @@ function App() {
     initialPricingMode,
     loading,
     marketRows,
+    marketsLoadError,
     onBundlePriceChange,
     onMarketEnabledChange,
     onMarketPriceChange,
@@ -124,6 +125,8 @@ function App() {
               step={ 0.01 }
               onChange={(event) => onBundlePriceChange(event.currentTarget.value)}
             />
+          ) : marketsLoadError ? (
+            <s-banner tone="critical">{ marketsLoadError }</s-banner>
           ) : marketRows.length ? (
             marketRows.map((row) => (
               <MarketPriceRow
@@ -167,11 +170,13 @@ function useExtensionData() {
   const [ pricingMode, setPricingMode ] = useState(PRICING_MODE_SINGLE);
   const [ initialPricingMode, setInitialPricingMode ] = useState(PRICING_MODE_SINGLE);
   const [ shopCurrencyCode, setShopCurrencyCode ] = useState('');
+  const [ marketsLoadError, setMarketsLoadError ] = useState(null);
   const [ loading, setLoading ] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setMarketsLoadError(null);
 
       const [ selectedCollection, marketsResult ] = await Promise.all([
         metafieldConfig.collectionId
@@ -183,6 +188,7 @@ function useExtensionData() {
       setInitialCollection(selectedCollection);
       setCollection(selectedCollection);
       setShopCurrencyCode(marketsResult.currencyCode);
+      setMarketsLoadError(marketsResult.error);
 
       const rows = buildMarketRows(allMarketsFromResult(marketsResult), metafieldConfig.markets);
       const savedPricingMode = metafieldConfig.pricingMode;
@@ -241,6 +247,7 @@ function useExtensionData() {
       pricingMode,
       marketRows,
       bundlePrice,
+      marketsLoadError,
     });
     if (validationError) {
       throw new Error(validationError);
@@ -307,6 +314,7 @@ function useExtensionData() {
     initialPricingMode,
     loading,
     marketRows,
+    marketsLoadError,
     onBundlePriceChange,
     onMarketEnabledChange,
     onMarketPriceChange,
@@ -399,7 +407,19 @@ function serializeMarketsConfig(marketRows) {
   return markets;
 }
 
-function validatePricingConfig({ pricingMode, marketRows, bundlePrice }) {
+function graphQlErrorsMessage(errors) {
+  if (!Array.isArray(errors) || !errors.length) {
+    return null;
+  }
+
+  const messages = errors
+    .map((entry) => (typeof entry?.message === 'string' ? entry.message : ''))
+    .filter(Boolean);
+
+  return messages.length ? messages.join(' ') : null;
+}
+
+function validatePricingConfig({ pricingMode, marketRows, bundlePrice, marketsLoadError }) {
   if (pricingMode === PRICING_MODE_SINGLE) {
     const amount = typeof bundlePrice === 'number'
       ? bundlePrice
@@ -410,6 +430,10 @@ function validatePricingConfig({ pricingMode, marketRows, bundlePrice }) {
     }
 
     return null;
+  }
+
+  if (marketsLoadError) {
+    return marketsLoadError;
   }
 
   if (!marketRows.length) {
@@ -522,6 +546,8 @@ async function getMarkets(adminApiQuery) {
     { variables: { first: 50 } },
   );
 
+  const error = graphQlErrorsMessage(result?.errors);
+
   return {
     currencyCode: result?.data?.shop?.currencyCode ?? '',
     markets: (result?.data?.markets?.nodes ?? []).map((market) => ({
@@ -529,6 +555,7 @@ async function getMarkets(adminApiQuery) {
       name: market.name,
       currencyCode: market.currencySettings?.baseCurrency?.currencyCode ?? '',
     })),
+    error,
   };
 }
 

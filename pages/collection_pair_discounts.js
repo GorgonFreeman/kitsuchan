@@ -35,6 +35,7 @@ class CollectionPairDiscountsPage extends LitElement {
     creating: { state: true },
     searchingCollections: { state: true },
     loadingMarkets: { state: true },
+    marketsLoadError: { state: true },
     error: { state: true },
     formError: { state: true },
     functionDeployed: { state: true },
@@ -57,6 +58,7 @@ class CollectionPairDiscountsPage extends LitElement {
     this.creating = false;
     this.searchingCollections = false;
     this.loadingMarkets = false;
+    this.marketsLoadError = null;
     this.error = null;
     this.formError = null;
     this.functionDeployed = true;
@@ -134,6 +136,7 @@ class CollectionPairDiscountsPage extends LitElement {
   async loadMarkets() {
     if (!this.shop) return;
     this.loadingMarkets = true;
+    this.marketsLoadError = null;
     try {
       const data = await this.apiGet('/api/markets');
       const allMarkets = (data.markets ?? []).map((market) => ({
@@ -144,7 +147,8 @@ class CollectionPairDiscountsPage extends LitElement {
       this.shopCurrencyCode = data.currencyCode ?? '';
       this.marketRows = buildMarketRows(allMarkets, {});
     } catch (e) {
-      this.formError = e instanceof Error ? e.message : String(e);
+      this.marketsLoadError = e instanceof Error ? e.message : String(e);
+      this.marketRows = [];
     } finally {
       this.loadingMarkets = false;
     }
@@ -199,6 +203,10 @@ class CollectionPairDiscountsPage extends LitElement {
   }
 
   get pricingValidationError() {
+    if (!this.isSinglePriceMode && this.marketsLoadError) {
+      return this.marketsLoadError;
+    }
+
     return validatePricingConfig({
       pricingMode: this.pricingMode,
       marketRows: this.marketRows,
@@ -390,7 +398,10 @@ class CollectionPairDiscountsPage extends LitElement {
                   ${ this.marketRows.map((row) => this.renderMarketRow(row)) }
                 </s-stack>
               ` : nothing }
-              ${ !this.isSinglePriceMode && !this.loadingMarkets && !this.marketRows.length ? html`
+              ${ !this.isSinglePriceMode && !this.loadingMarkets && this.marketsLoadError ? html`
+                <s-banner tone="critical">${ this.marketsLoadError }</s-banner>
+              ` : nothing }
+              ${ !this.isSinglePriceMode && !this.loadingMarkets && !this.marketsLoadError && !this.marketRows.length ? html`
                 <s-paragraph color="subdued">No markets found for this store.</s-paragraph>
               ` : nothing }
               <s-paragraph color="subdued">

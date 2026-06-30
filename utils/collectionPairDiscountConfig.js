@@ -4,6 +4,22 @@ export const PRICING_MODE_SINGLE = 'single';
 export const PRICING_MODE_MARKETS = 'markets';
 
 /**
+  * @param {unknown} errors
+  * @returns {string | null}
+  */
+export function graphQlErrorsMessage(errors) {
+  if (!Array.isArray(errors) || !errors.length) {
+    return null;
+  }
+
+  const messages = errors
+    .map((entry) => (typeof entry?.message === 'string' ? entry.message : ''))
+    .filter(Boolean);
+
+  return messages.length ? messages.join(' ') : null;
+}
+
+/**
   * @param {unknown} parsed
   * @returns {'single' | 'markets'}
   */
@@ -131,6 +147,10 @@ export function validateSinglePrice(bundlePrice) {
 export function validatePricingConfig(input) {
   if (isSinglePriceMode(input.pricingMode)) {
     return validateSinglePrice(input.bundlePrice);
+  }
+
+  if (input.marketsLoadError) {
+    return input.marketsLoadError;
   }
 
   if (!input.marketRows?.length) {

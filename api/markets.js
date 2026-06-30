@@ -1,5 +1,6 @@
 /** GET /api/markets?shop=… */
 
+import { graphQlErrorsMessage } from '../utils/collectionPairDiscountConfig.js';
 import { shopify } from '../shopify-server.js';
 import { gqlErrorResponse } from './_collectionPairDiscountShared.js';
 
@@ -40,7 +41,16 @@ export default async function markets(req, res, { session }) {
 
   try {
     const client = new shopify.clients.Graphql({ session });
-    const { data } = await client.request(QUERY, { variables: { first } });
+    const response = await client.request(QUERY, { variables: { first } });
+    const gqlErrors = response.errors ?? response.body?.errors?.graphQLErrors;
+    const accessError = graphQlErrorsMessage(gqlErrors);
+    if (accessError) {
+      res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: accessError, errors: gqlErrors }));
+      return;
+    }
+
+    const { data } = response;
     const nodes = (data?.markets?.nodes ?? []).map((market) => ({
       id: market.id,
       name: market.name,
