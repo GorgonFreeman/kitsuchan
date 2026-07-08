@@ -19,5 +19,13 @@
   "inventory-sync-action-name": "WIP: Sync inventory",
   "inventory-sync-description": "Sync inventory for this product.",
   "inventory-sync-description-bulk": "Sync inventory for {{count}} selected products.",
-  "inventory-sync-product-id": "Product ID: {{id}}"
+  "inventory-sync-product-id": "Product ID: {{id}}",
+  "order-sync-action-name": "Peoplevox Order Sync",
+  "order-sync-description": "Fetch Peoplevox details for order {{id}}.",
+  "order-sync-fetch-details": "Fetch details",
+  "order-sync-fetching": "Fetching details for order {{id}}…",
+  "order-sync-no-order": "No order in context.",
+  "order-sync-error": "Failed to fetch details: {{message}}",
+  "order-sync-financial-status": "Payment: {{status}}",
+  "order-sync-fulfillment-status": "Fulfillment: {{status}}"
 }

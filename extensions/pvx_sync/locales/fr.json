@@ -19,5 +19,13 @@
   "inventory-sync-action-name": "WIP: Sync inventory",
   "inventory-sync-description": "Sync inventory for this product.",
   "inventory-sync-description-bulk": "Sync inventory for {{count}} selected products.",
-  "inventory-sync-product-id": "Product ID: {{id}}"
+  "inventory-sync-product-id": "Product ID: {{id}}",
+  "order-sync-action-name": "Synchronisation de commande Peoplevox",
+  "order-sync-description": "Récupérer les détails Peoplevox pour la commande {{id}}.",
+  "order-sync-fetch-details": "Récupérer les détails",
+  "order-sync-fetching": "Récupération des détails pour la commande {{id}}…",
+  "order-sync-no-order": "Aucune commande en contexte.",
+  "order-sync-error": "Échec de la récupération des détails : {{message}}",
+  "order-sync-financial-status": "Paiement : {{status}}",
+  "order-sync-fulfillment-status": "Expédition : {{status}}"
 }

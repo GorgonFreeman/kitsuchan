@@ -49,3 +49,13 @@ type = "ui_extension"
 [[extensions.targeting]]
 module = "./src/InventorySyncAction.jsx"
 target = "admin.product-index.selection-action.render"
+
+[[extensions]]
+name = "t:order-sync-action-name"
+handle = "pvx-order-sync"
+uid = "a7c3e891-2f4b-4d6e-9a1c-8e5f0b3d7c42"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/OrderSyncAction.jsx"
+target = "admin.order-details.action.render"
