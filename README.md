@@ -59,3 +59,9 @@ npm run deploy
 - **`index.html`** is the Vite entry; **`src/App.jsx`** sets up Polaris + react-router and discovers pages via `import.meta.glob('../pages/**/*.jsx')` → routes at `/pages/<slug>`.
 - **`server.js`** serves `dist/index.html` for authenticated GETs (any path used by the SPA), `/assets/*`, autoloaded `/api/<handler>`, and `/auth/callback`. Embedded iframes are detected (`Sec-Fetch-Dest: iframe`) and the **top window** is redirected before OAuth so the `SameSite=Lax` cookie survives.
 - Offline OAuth sessions persist to Upstash under `kitsuchan:session:<shop>` if both Upstash env vars are set, else a process-local `Map`.
+## Third party platform connections
+- Take credentials in a settings page
+- Try an API call
+- If it works, the connection is good
+- Store the creds, encrypted with a private key formed from the shop handle and app name, in an app metafield
+- Use afterwards with a key as credsPath
