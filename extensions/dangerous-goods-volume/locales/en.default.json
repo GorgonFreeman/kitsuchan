@@ -1,0 +1,4 @@
+{
+  "name": "Dangerous goods volume",
+  "description": "Block checkout when dangerous goods volume in the cart exceeds a configured threshold"
+}

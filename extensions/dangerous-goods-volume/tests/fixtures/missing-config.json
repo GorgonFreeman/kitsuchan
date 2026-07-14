@@ -1,0 +1,39 @@
+{
+  "payload": {
+    "export": "cart-validations-generate-run",
+    "target": "cart.validations.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "quantity": 5,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "volumeMl": {
+                "value": "999"
+              },
+              "product": {
+                "hasAnyTag": true,
+                "volumeMl": {
+                  "value": "999"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "validation": {
+        "metafield": null
+      }
+    },
+    "output": {
+      "operations": [
+        {
+          "validationAdd": {
+            "errors": []
+          }
+        }
+      ]
+    }
+  }
+}

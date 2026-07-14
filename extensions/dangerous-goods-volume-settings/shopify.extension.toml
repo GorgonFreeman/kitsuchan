@@ -1,0 +1,15 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "t:name"
+handle = "dangerous-goods-volume-settings"
+type = "ui_extension"
+uid = "0ed1788d-25ff-f259-b32e-da150a2f83a2c05dbcf7"
+
+[[extensions.targeting]]
+module = "./src/ValidationSettings.jsx"
+target = "admin.settings.validation.render"
+
+[[extensions.metafields]]
+namespace = "$app:dangerous-goods-volume"
+key = "function-configuration"

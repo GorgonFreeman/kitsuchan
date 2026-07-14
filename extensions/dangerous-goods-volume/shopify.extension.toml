@@ -1,0 +1,20 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "t:name"
+handle = "dangerous-goods-volume"
+type = "function"
+uid = "f7d2b007-30da-a30d-cf2b-f31d19401558b69ad26f"
+description = "t:description"
+
+  [[extensions.targeting]]
+  target = "cart.validations.generate.run"
+  input_query = "src/cart_validations_generate_run.graphql"
+  export = "cart-validations-generate-run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+  [extensions.ui]
+  handle = "dangerous-goods-volume-settings"

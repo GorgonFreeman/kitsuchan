@@ -1,0 +1,49 @@
+{
+  "payload": {
+    "export": "cart-validations-generate-run",
+    "target": "cart.validations.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "quantity": 3,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "volumeMl": {
+                "value": "400"
+              },
+              "product": {
+                "hasAnyTag": true,
+                "volumeMl": {
+                  "value": "100"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "validation": {
+        "metafield": {
+          "jsonValue": {
+            "volumeThreshold": 1000,
+            "message": "Too much dangerous goods volume in the cart."
+          }
+        }
+      }
+    },
+    "output": {
+      "operations": [
+        {
+          "validationAdd": {
+            "errors": [
+              {
+                "message": "Too much dangerous goods volume in the cart.",
+                "target": "$.cart"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

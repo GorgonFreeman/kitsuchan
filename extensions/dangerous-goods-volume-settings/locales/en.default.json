@@ -1,0 +1,9 @@
+{
+  "name": "Dangerous goods volume settings",
+  "title": "Dangerous goods volume",
+  "helpText": "Deny checkout when the total volume_ml of products tagged dangerous_goods exceeds the threshold.",
+  "volumeThresholdLabel": "Volume threshold (ml)",
+  "messageLabel": "Denial message",
+  "thresholdInvalid": "Enter a valid volume threshold of 0 or greater.",
+  "messageRequired": "Enter a denial message."
+}

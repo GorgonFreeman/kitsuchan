@@ -1,0 +1,9 @@
+{
+  "name": "Paramètres du volume des marchandises dangereuses",
+  "title": "Volume des marchandises dangereuses",
+  "helpText": "Refuser le paiement lorsque le volume_ml total des produits étiquetés dangerous_goods dépasse le seuil.",
+  "volumeThresholdLabel": "Seuil de volume (ml)",
+  "messageLabel": "Message de refus",
+  "thresholdInvalid": "Entrez un seuil de volume valide de 0 ou plus.",
+  "messageRequired": "Entrez un message de refus."
+}

@@ -1,0 +1,26 @@
+query CartValidationsGenerateRunInput {
+  cart {
+    lines {
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          volumeMl: metafield(namespace: "specifications", key: "volume_ml") {
+            value
+          }
+          product {
+            hasAnyTag(tags: ["dangerous_goods"])
+            volumeMl: metafield(namespace: "specifications", key: "volume_ml") {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+  validation {
+    metafield(namespace: "$app:dangerous-goods-volume", key: "function-configuration") {
+      jsonValue
+    }
+  }
+}
