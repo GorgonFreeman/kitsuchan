@@ -13,7 +13,7 @@ class ThemeKillerPage extends LitElement {
   constructor() {
     super();
     this.themes = [];
-    this.sortMode = 'updatedAt-desc';
+    this.sortMode = 'createdAt-desc';
     this.selected = {};
     this.loading = false;
     this.busy = false;
@@ -77,10 +77,12 @@ class ThemeKillerPage extends LitElement {
     const dir = this.sortMode.slice(dash + 1);
     const mult = dir === 'desc' ? -1 : 1;
     list.sort((a, b) => {
-      if (key === 'updatedAt') {
-        const ta = new Date(a.updatedAt).getTime();
-        const tb = new Date(b.updatedAt).getTime();
-        return mult * (ta - tb);
+      if (key === 'createdAt') {
+        const ta = new Date(a.createdAt).getTime();
+        const tb = new Date(b.createdAt).getTime();
+        const byDate = mult * (ta - tb);
+        if (byDate !== 0) return byDate;
+        return String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' });
       }
       return mult * String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' });
     });
@@ -95,8 +97,8 @@ class ThemeKillerPage extends LitElement {
   }
 
   rowDetails(t) {
-    const saved = `Saved ${ this.formatSavedAt(t.updatedAt) }`;
-    return t.role === 'MAIN' ? `${ saved } · Published (protected)` : saved;
+    const created = `Created ${ this.formatSavedAt(t.createdAt) }`;
+    return t.role === 'MAIN' ? `${ created } · Published (protected)` : created;
   }
 
   async submitDelete() {
@@ -138,8 +140,8 @@ class ThemeKillerPage extends LitElement {
                 ?disabled=${ this.loading }
                 @change=${ (e) => this.onSortChange(e) }
               >
-                <s-option value='updatedAt-desc'>Last updated (newest first)</s-option>
-                <s-option value='updatedAt-asc'>Last updated (oldest first)</s-option>
+                <s-option value='createdAt-desc'>Created (newest first)</s-option>
+                <s-option value='createdAt-asc'>Created (oldest first)</s-option>
                 <s-option value='name-asc'>Name A-Z</s-option>
                 <s-option value='name-desc'>Name Z-A</s-option>
               </s-select>

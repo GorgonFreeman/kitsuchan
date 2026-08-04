@@ -15,7 +15,7 @@ const QUERY = `#graphql
         id
         name
         role
-        updatedAt
+        createdAt
       }
     }
   }
