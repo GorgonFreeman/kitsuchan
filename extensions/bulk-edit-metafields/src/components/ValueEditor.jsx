@@ -176,7 +176,7 @@ function ScalarEditor({ base, typeName, definition, value, onChange, label, i18n
     return (
       <s-number-field
         label={label}
-        details={`${current.scale_min} – ${current.scale_max}`}
+        details={`${current.scale_min} - ${current.scale_max}`}
         value={current.value === '' || current.value == null ? '' : String(current.value)}
         onChange={(e) =>
           onChange({

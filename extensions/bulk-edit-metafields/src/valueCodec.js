@@ -298,19 +298,25 @@ export function definitionLabel(def) {
   return `${def.name} (${def.namespace}.${def.key})`;
 }
 
-export function formatDisplayValue(typeName, value) {
-  if (value == null || value === '') return '—';
+export function formatDisplayValue(typeName, value, labelMap = null) {
+  if (value == null || value === '') return '-';
   if (Array.isArray(value)) {
-    if (!value.length) return '[]';
-    return value.map((v) => formatDisplayValue(baseType(typeName), v)).join(', ');
+    if (!value.length) return '(empty)';
+    return value.map((v) => formatDisplayValue(baseType(typeName), v, labelMap)).join(', ');
   }
   if (typeof value === 'object') {
-    if (value.id) return value.label || value.id;
+    if (value.id) {
+      return (
+        value.label ||
+        labelMap?.get(String(value.id)) ||
+        humanizeRef(value.id)
+      );
+    }
     if (value.amount != null) return `${value.amount} ${value.currency_code ?? ''}`.trim();
     if (value.unit != null) return `${value.value} ${value.unit}`;
-    if (value.text != null && value.url != null) return `${value.text} → ${value.url}`;
+    if (value.text != null && value.url != null) return `${value.text} -> ${value.url}`;
     if (value.value != null && value.scale_max != null) {
-      return `${value.value} (${value.scale_min}–${value.scale_max})`;
+      return `${value.value} (${value.scale_min}-${value.scale_max})`;
     }
     try {
       return JSON.stringify(value);
@@ -318,7 +324,17 @@ export function formatDisplayValue(typeName, value) {
       return String(value);
     }
   }
+  if (typeof value === 'string' && value.startsWith('gid://')) {
+    return labelMap?.get(value) || humanizeRef(value);
+  }
   return String(value);
+}
+
+function humanizeRef(gid) {
+  const parts = String(gid).split('/');
+  const type = parts[parts.length - 2] || 'Item';
+  const id = parts[parts.length - 1] || '';
+  return `${type} ${id}`.trim();
 }
 
 /** Split pasted CSV / newline / comma text into string tokens. */
@@ -330,7 +346,7 @@ export function parsePasteTokens(text) {
     .filter(Boolean);
 }
 
-export function summarizeRuleValue(typeName, operation, editorValue) {
+export function summarizeRuleValue(typeName, operation, editorValue, labelMap = null) {
   if (operation === 'clear') return 'clear metafield';
-  return formatDisplayValue(typeName, editorValue);
+  return formatDisplayValue(typeName, editorValue, labelMap);
 }

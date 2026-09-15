@@ -1,8 +1,14 @@
 import { adminGraphql, chunk } from './adminGraphql.js';
 import {
+  collectGids,
+  enrichMetaobjectEntry,
+  labelFromResolvedNode,
+} from './metaobjectDisplay.js';
+import {
   encodeMetafieldValue,
   formatDisplayValue,
   isListType,
+  isReferenceType,
   mergeUnique,
   parseMetafieldValue,
   removeMatches,
@@ -65,6 +71,12 @@ const METAOBJECT_DEF_QUERY = `#graphql
       id
       type
       name
+      displayNameKey
+      fieldDefinitions {
+        key
+        name
+        type { name }
+      }
     }
   }
 `;
@@ -73,7 +85,66 @@ const METAOBJECTS_QUERY = `#graphql
   query MetaobjectsByType($type: String!, $first: Int!, $after: String) {
     metaobjects(type: $type, first: $first, after: $after) {
       pageInfo { hasNextPage endCursor }
-      nodes { id handle displayName type }
+      nodes {
+        id
+        handle
+        displayName
+        type
+        fields {
+          key
+          value
+          type
+          reference {
+            ... on MediaImage {
+              id
+              image { url altText }
+            }
+            ... on GenericFile {
+              id
+              url
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const NODES_LABELS_QUERY = `#graphql
+  query NodesDisplayNames($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      __typename
+      ... on Metaobject {
+        id
+        displayName
+        handle
+        fields { key value type }
+      }
+      ... on Product {
+        id
+        title
+      }
+      ... on Collection {
+        id
+        title
+      }
+      ... on ProductVariant {
+        id
+        title
+        displayName
+      }
+      ... on Page {
+        id
+        title
+      }
+      ... on MediaImage {
+        id
+        image { url altText }
+      }
+      ... on GenericFile {
+        id
+        url
+      }
     }
   }
 `;
@@ -104,7 +175,7 @@ export async function fetchMetaobjectType(definitionGid) {
   return data?.metaobjectDefinition ?? null;
 }
 
-export async function fetchMetaobjects(type) {
+export async function fetchMetaobjects(type, definition = null) {
   const all = [];
   let after = null;
   let hasNextPage = true;
@@ -116,7 +187,28 @@ export async function fetchMetaobjects(type) {
     after = conn?.pageInfo?.endCursor ?? null;
     if (all.length >= 250) break;
   }
-  return all;
+  return all.map((node) => enrichMetaobjectEntry(node, definition));
+}
+
+/** Resolve Shopify GIDs to human-readable labels (never show raw GIDs in UI). */
+export async function resolveDisplayLabels(ids) {
+  const unique = [...new Set((ids || []).filter((id) => typeof id === 'string' && id.startsWith('gid://')))];
+  const map = new Map();
+  if (!unique.length) return map;
+
+  for (const batch of chunk(unique, 50)) {
+    try {
+      const data = await adminGraphql(NODES_LABELS_QUERY, { ids: batch });
+      for (const node of data?.nodes ?? []) {
+        if (!node?.id) continue;
+        const label = labelFromResolvedNode(node);
+        if (label) map.set(node.id, label);
+      }
+    } catch {
+      // Partial label resolution is fine - formatDisplayValue falls back to humanized type/id
+    }
+  }
+  return map;
 }
 
 export async function readProductMetafields(productGids, namespace, key) {
@@ -135,10 +227,24 @@ export async function sampleMetafieldValues(productGids, definition, limit = 5) 
   const sampleIds = productGids.slice(0, Math.min(25, productGids.length));
   const products = await readProductMetafields(sampleIds, definition.namespace, definition.key);
   const withValue = products.filter((p) => p.metafield?.value != null && p.metafield.value !== '');
+
+  let labelMap = null;
+  if (isReferenceType(definition.type)) {
+    const gids = [];
+    for (const p of withValue.slice(0, limit)) {
+      gids.push(...collectGids(parseMetafieldValue(definition.type, p.metafield.value)));
+    }
+    labelMap = await resolveDisplayLabels(gids);
+  }
+
   const samples = withValue.slice(0, limit).map((p) => ({
     productId: p.id,
     title: p.title,
-    display: formatDisplayValue(definition.type, parseMetafieldValue(definition.type, p.metafield.value)),
+    display: formatDisplayValue(
+      definition.type,
+      parseMetafieldValue(definition.type, p.metafield.value),
+      labelMap,
+    ),
   }));
   return {
     sampled: sampleIds.length,
@@ -167,7 +273,7 @@ export async function dryRunRule(productGids, { definition, operation, editorVal
   let willChange = 0;
   let unchanged = 0;
   let missing = 0;
-  const examples = [];
+  const pendingExamples = [];
 
   for (const ownerId of productGids) {
     const product = byId.get(ownerId);
@@ -179,11 +285,11 @@ export async function dryRunRule(productGids, { definition, operation, editorVal
     if (operation === 'clear') {
       if (hasValue) {
         willChange += 1;
-        if (examples.length < 3) {
-          examples.push({
+        if (pendingExamples.length < 3) {
+          pendingExamples.push({
             title: product?.title ?? ownerId,
-            from: formatDisplayValue(type, current),
-            to: '—',
+            from: current,
+            to: null,
           });
         }
       } else {
@@ -202,15 +308,27 @@ export async function dryRunRule(productGids, { definition, operation, editorVal
       unchanged += 1;
     } else {
       willChange += 1;
-      if (examples.length < 3) {
-        examples.push({
+      if (pendingExamples.length < 3) {
+        pendingExamples.push({
           title: product?.title ?? ownerId,
-          from: formatDisplayValue(type, current),
-          to: formatDisplayValue(type, next),
+          from: current,
+          to: next,
         });
       }
     }
   }
+
+  const gids = [...collectGids(editorValue)];
+  for (const ex of pendingExamples) {
+    gids.push(...collectGids(ex.from), ...collectGids(ex.to));
+  }
+  const labelMap = await resolveDisplayLabels(gids);
+
+  const examples = pendingExamples.map((ex) => ({
+    title: ex.title,
+    from: formatDisplayValue(type, ex.from, labelMap),
+    to: ex.to == null ? '-' : formatDisplayValue(type, ex.to, labelMap),
+  }));
 
   return {
     definition,
@@ -220,6 +338,8 @@ export async function dryRunRule(productGids, { definition, operation, editorVal
     unchanged,
     missing,
     examples,
+    valueLabel: formatDisplayValue(type, editorValue, labelMap),
+    labelMap,
   };
 }
 
