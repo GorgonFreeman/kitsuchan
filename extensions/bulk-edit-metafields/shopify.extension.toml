@@ -1,0 +1,11 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "t:name"
+handle = "bulk-edit-metafields"
+type = "ui_extension"
+uid = "1f0717d8-5622-4955-b5f9-f3bd6cd8ed42"
+
+[[extensions.targeting]]
+module = "./src/ActionExtension.jsx"
+target = "admin.product-index.selection-action.render"

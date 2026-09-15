@@ -1,3 +1,5 @@
+v1: Set + Delete only (scalars + list scalars). Add/Remove items later.
+
 1. Select your products
 1. More actions menu
 1. "Bulk edit metafields" summons a popup
