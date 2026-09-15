@@ -7,14 +7,14 @@ import {
 import {
   isMetaobjectRefType,
   isResourcePickerType,
-  metaobjectDefinitionId,
+  metaobjectDefinitionIds,
   parsePasteTokens,
   resourcePickerType,
 } from '../valueCodec.js';
 
 /**
- * Reference editor — resourcePicker / metaobject picker when possible,
- * otherwise GID paste (pages, files, customers, etc.).
+ * Reference editor — native pickers for product/collection/variant/metaobject.
+ * GID paste only for reference types without a picker.
  */
 export function ReferenceEditor({
   definition,
@@ -26,15 +26,18 @@ export function ReferenceEditor({
   i18n,
 }) {
   const [gidPaste, setGidPaste] = useState('');
+  const [picking, setPicking] = useState(false);
   const items = Array.isArray(values) ? values : values ? [values] : [];
   const typeName = definition.type;
   const pickerType = resourcePickerType(typeName);
-  const canPick =
-    isResourcePickerType(typeName) || isMetaobjectRefType(typeName);
+  const isMetaobject = isMetaobjectRefType(typeName);
+  const canPick = isResourcePickerType(typeName) || isMetaobject;
+  const showGidPaste = !canPick;
 
   async function pickResources() {
+    setPicking(true);
     try {
-      if (isMetaobjectRefType(typeName)) {
+      if (isMetaobject) {
         await pickMetaobjects();
         return;
       }
@@ -54,35 +57,69 @@ export function ReferenceEditor({
       else onChange(next[0] ? [next[0]] : []);
     } catch (err) {
       onError?.(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPicking(false);
     }
   }
 
   async function pickMetaobjects() {
-    const defId = metaobjectDefinitionId(definition.validations);
-    if (!defId) {
+    const defIds = metaobjectDefinitionIds(definition.validations);
+    if (!defIds.length) {
       throw new Error('This metafield has no metaobject definition constraint.');
     }
-    const def = await fetchMetaobjectType(defId);
-    if (!def?.type) throw new Error('Could not load metaobject definition type.');
-    const entries = await fetchMetaobjects(def.type);
+
+    const entries = [];
+    const typeNames = [];
+    for (const defId of defIds) {
+      const def = await fetchMetaobjectType(defId);
+      if (!def?.type) continue;
+      typeNames.push(def.name || def.type);
+      const nodes = await fetchMetaobjects(def.type);
+      for (const entry of nodes) {
+        entries.push({
+          id: entry.id,
+          handle: entry.handle,
+          displayName: entry.displayName || entry.handle,
+          typeLabel: def.name || def.type,
+        });
+      }
+    }
+
+    if (!entries.length) {
+      throw new Error('No metaobject entries found for this definition.');
+    }
+
+    const heading =
+      typeNames.length === 1
+        ? typeNames[0]
+        : i18n.translate('pick-metaobjects');
+
     const picker = await shopify.picker({
-      heading: def.name || 'Select metaobjects',
+      heading,
       multiple: Boolean(multiple),
-      headers: [{ content: 'Name' }, { content: 'Handle' }],
+      headers: [
+        { content: 'Handle' },
+        ...(typeNames.length > 1 ? [{ content: 'Type' }] : []),
+      ],
       items: entries.map((entry) => ({
         id: entry.id,
-        heading: entry.displayName || entry.handle,
-        data: [entry.handle],
+        heading: entry.displayName,
+        data:
+          typeNames.length > 1
+            ? [entry.handle, entry.typeLabel]
+            : [entry.handle],
         selected: items.some((i) => i.id === entry.id),
       })),
     });
+
     const selectedIds = await picker.selected;
     if (!selectedIds) return;
+
     const idSet = new Set(selectedIds);
     onChange(
       entries
         .filter((e) => idSet.has(e.id))
-        .map((e) => ({ id: e.id, label: e.displayName || e.handle })),
+        .map((e) => ({ id: e.id, label: e.displayName })),
     );
   }
 
@@ -104,23 +141,33 @@ export function ReferenceEditor({
     onChange(items.filter((_, i) => i !== index));
   }
 
+  const buttonLabel = isMetaobject
+    ? i18n.translate(multiple ? 'pick-metaobjects-multiple' : 'pick-metaobjects')
+    : pickLabel;
+
   return (
     <s-stack direction="block" gap="base">
-      {canPick && <s-button onClick={pickResources}>{pickLabel}</s-button>}
-      {!canPick && (
-        <s-text color="subdued">
-          {i18n.translate('gid-paste-help')}
-        </s-text>
+      {canPick && (
+        <s-button loading={picking} onClick={pickResources}>
+          {buttonLabel}
+        </s-button>
       )}
-      <s-text-area
-        label={i18n.translate('paste-gids')}
-        value={gidPaste}
-        rows={2}
-        onChange={(e) => setGidPaste(e.currentTarget.value)}
-      />
-      <s-button disabled={!gidPaste.trim()} onClick={importGids}>
-        {i18n.translate('add-gids')}
-      </s-button>
+
+      {showGidPaste && (
+        <s-stack direction="block" gap="base">
+          <s-text color="subdued">{i18n.translate('gid-paste-help')}</s-text>
+          <s-text-area
+            label={i18n.translate('paste-gids')}
+            value={gidPaste}
+            rows={2}
+            onChange={(e) => setGidPaste(e.currentTarget.value)}
+          />
+          <s-button disabled={!gidPaste.trim()} onClick={importGids}>
+            {i18n.translate('add-gids')}
+          </s-button>
+        </s-stack>
+      )}
+
       {items.length > 0 && (
         <s-stack direction="inline" gap="small-200">
           {items.map((item, index) => (

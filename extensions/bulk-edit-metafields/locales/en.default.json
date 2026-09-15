@@ -30,6 +30,8 @@
   "add-gids": "Add GIDs",
   "gid-paste-help": "Paste resource GIDs (one per line or comma-separated).",
   "pick-resources": "Select",
+  "pick-metaobjects": "Select metaobject",
+  "pick-metaobjects-multiple": "Select metaobjects",
   "unit": "Unit",
   "amount": "Amount",
   "currency": "Currency",
