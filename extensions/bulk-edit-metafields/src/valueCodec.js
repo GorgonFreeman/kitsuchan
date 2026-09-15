@@ -123,8 +123,26 @@ export function resourcePickerType(typeName) {
 }
 
 export function metaobjectDefinitionId(validations = []) {
-  const match = validations.find((v) => v.name === 'metaobject_definition_id');
-  return match?.value ?? null;
+  const ids = metaobjectDefinitionIds(validations);
+  return ids[0] ?? null;
+}
+
+/** One or more metaobject definition GIDs from metafield validations. */
+export function metaobjectDefinitionIds(validations = []) {
+  const single = validations.find((v) => v.name === 'metaobject_definition_id')?.value;
+  const multi = validations.find((v) => v.name === 'metaobject_definition_ids')?.value;
+  const ids = [];
+  if (single) ids.push(String(single));
+  if (multi) {
+    try {
+      const parsed = JSON.parse(multi);
+      if (Array.isArray(parsed)) ids.push(...parsed.map(String));
+      else if (parsed) ids.push(String(parsed));
+    } catch {
+      ids.push(String(multi));
+    }
+  }
+  return [...new Set(ids.filter(Boolean))];
 }
 
 export function ratingScale(validations = []) {
