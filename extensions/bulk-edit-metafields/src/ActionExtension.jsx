@@ -2,360 +2,312 @@
 import '@shopify/ui-extensions/preact';
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import {
-  deleteMetafieldsOnProducts,
-  fetchProductMetafieldDefinitions,
-  setMetafieldsOnProducts,
-} from './adminGraphql.js';
-import {
-  addListItem,
-  defKey,
-  isListType,
-  isSetValueReady,
-  isSupportedType,
-  normalizeScalar,
-  scalarTypeOf,
-  serializeSetValue,
-} from './metafieldTypes.js';
 
-// Future list ops (read-merge-write): 'add' | 'remove'
-/** @typedef {'set' | 'delete'} Action */
+import {
+  editorValueForOperation,
+  isEditorReady,
+  ValueEditor,
+} from './components/ValueEditor.jsx';
+import {
+  fetchAllProductMetafieldDefinitions,
+  runBulkMetafieldOperation,
+} from './operations.js';
+import {
+  definitionLabel,
+  isListType,
+  isSupportedType,
+} from './valueCodec.js';
+
+const BULK_TARGET = 'admin.product-index.selection-action.render';
 
 export default async () => {
   render(<Extension />, document.body);
 };
 
 function Extension() {
-  const { close, data, i18n } = shopify;
-  const productGids = (data.selected ?? []).map((item) => item?.id).filter(Boolean);
+  const { close, data, i18n, extension } = shopify;
+  const isBulk = String(extension.target) === BULK_TARGET;
+
+  const productGids = (data.selected ?? [])
+    .map((item) => item?.id)
+    .filter(Boolean);
   const count = productGids.length;
 
-  const [ definitions, setDefinitions ] = useState([]);
-  const [ defsStatus, setDefsStatus ] = useState('loading'); // loading | ready | error
-  const [ defsError, setDefsError ] = useState('');
-
-  const [ selectedKey, setSelectedKey ] = useState('');
-  const [ action, setAction ] = useState(/** @type {Action} */ ('set'));
-  const [ scalarValue, setScalarValue ] = useState('');
-  const [ listItems, setListItems ] = useState([]);
-  const [ listDraft, setListDraft ] = useState('');
-  const [ deleteConfirm, setDeleteConfirm ] = useState('');
-
-  const [ status, setStatus ] = useState('idle'); // idle | submitting | success | error
-  const [ errorMessage, setErrorMessage ] = useState('');
+  const [definitions, setDefinitions] = useState([]);
+  const [defsLoading, setDefsLoading] = useState(true);
+  const [defsError, setDefsError] = useState('');
+  const [selectedId, setSelectedId] = useState('');
+  const [operation, setOperation] = useState('');
+  const [editorValue, setEditorValue] = useState(null);
+  const [clearConfirm, setClearConfirm] = useState('');
+  const [status, setStatus] = useState('idle');
+  const [resultSummary, setResultSummary] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    fetchProductMetafieldDefinitions()
-      .then((nodes) => {
-        if (cancelled) return;
-        const supported = nodes
-          .filter((n) => isSupportedType(n?.type?.name))
-          .map((n) => ({
-            name: n.name,
-            namespace: n.namespace,
-            key: n.key,
-            type: n.type.name,
-          }))
-          .sort((a, b) => defKey(a).localeCompare(defKey(b)));
-        setDefinitions(supported);
-        if (supported.length) setSelectedKey(defKey(supported[ 0 ]));
-        setDefsStatus('ready');
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.log('bulkEditMetafieldsDefsError', err);
-        setDefsError(err instanceof Error ? err.message : String(err));
-        setDefsStatus('error');
-      });
-    return () => { cancelled = true; };
+    (async () => {
+      try {
+        const defs = await fetchAllProductMetafieldDefinitions();
+        if (!cancelled) {
+          setDefinitions(defs);
+          setDefsLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDefsError(err instanceof Error ? err.message : String(err));
+          setDefsLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const selected = definitions.find((d) => defKey(d) === selectedKey) ?? null;
-  const listMode = selected ? isListType(selected.type) : false;
+  const definition = definitions.find((d) => d.id === selectedId) ?? null;
+  const supported = definition ? isSupportedType(definition.type) : false;
+  const listType = definition ? isListType(definition.type) : false;
 
-  function onSelectDefinition(nextKey) {
-    setSelectedKey(nextKey);
-    const next = definitions.find((d) => defKey(d) === nextKey);
-    const scalar = next ? scalarTypeOf(next.type) : '';
-    setScalarValue(scalar === 'boolean' ? 'true' : '');
-    setListItems([]);
-    setListDraft(scalar === 'boolean' ? 'true' : '');
-    setDeleteConfirm('');
+  function selectMetafield(id) {
+    setSelectedId(id);
+    setOperation('');
+    setEditorValue(null);
+    setClearConfirm('');
+    setStatus('idle');
+    setResultSummary(null);
     setErrorMessage('');
-    if (status === 'error' || status === 'success') setStatus('idle');
   }
 
-  function onPickAction(next) {
-    setAction(next);
-    setDeleteConfirm('');
-    setErrorMessage('');
-    if (status === 'error' || status === 'success') setStatus('idle');
-  }
-
-  function tryAddListItem() {
-    if (!selected) return;
-    setListItems((prev) => addListItem(prev, selected.type, listDraft));
-    setListDraft(scalarTypeOf(selected.type) === 'boolean' ? 'true' : '');
-  }
-
-  function removeListItem(item) {
-    setListItems((prev) => prev.filter((x) => x !== item));
-  }
-
-  const setValue = listMode ? listItems : scalarValue;
-  const canSubmit = (() => {
-    if (!count || !selected || status === 'submitting') return false;
-    if (action === 'delete') return deleteConfirm.trim() === 'delete';
-    if (action === 'set') return isSetValueReady(selected.type, setValue);
-    return false;
-  })();
-
-  async function runSubmit() {
-    if (!canSubmit || !selected) return;
-    setStatus('submitting');
-    setErrorMessage('');
+  async function openMetafieldPicker() {
     try {
-      if (action === 'delete') {
-        await deleteMetafieldsOnProducts({
-          productGids,
-          namespace: selected.namespace,
-          key: selected.key,
-        });
-      } else {
-        const value = serializeSetValue(
-          selected.type,
-          listMode ? listItems : normalizeScalar(selected.type, scalarValue),
-        );
-        await setMetafieldsOnProducts({
-          productGids,
-          namespace: selected.namespace,
-          key: selected.key,
-          type: selected.type,
-          value,
-        });
-      }
-      setStatus('success');
+      const picker = await shopify.picker({
+        heading: i18n.translate('select-metafield'),
+        multiple: false,
+        headers: [
+          { content: 'Namespace.key' },
+          { content: 'Type' },
+        ],
+        items: definitions.map((def) => ({
+          id: def.id,
+          heading: def.name,
+          data: [`${def.namespace}.${def.key}`, def.type],
+          selected: def.id === selectedId,
+        })),
+      });
+      const selected = await picker.selected;
+      if (!selected?.length) return;
+      selectMetafield(String(selected[0]));
     } catch (err) {
-      console.log('bulkEditMetafieldsError', err);
-      setErrorMessage(err instanceof Error ? err.message : String(err));
       setStatus('error');
+      setErrorMessage(err instanceof Error ? err.message : String(err));
     }
   }
 
-  const isSubmitting = status === 'submitting';
-  const isSuccess = status === 'success';
-  const isError = status === 'error';
-  const formLocked = isSubmitting || isSuccess;
+  function selectOperation(op) {
+    setOperation(op);
+    setEditorValue(listType || op === 'add' || op === 'remove' ? [] : '');
+    setClearConfirm('');
+    setStatus('idle');
+    setResultSummary(null);
+    setErrorMessage('');
+  }
+
+  const canApply =
+    count > 0 &&
+    definition &&
+    supported &&
+    operation &&
+    status !== 'running' &&
+    isEditorReady(definition, operation, editorValue, clearConfirm);
+
+  async function apply() {
+    if (!canApply) return;
+    setStatus('running');
+    setErrorMessage('');
+    setResultSummary(null);
+    try {
+      const prepared = editorValueForOperation(definition, operation, editorValue);
+      const result = await runBulkMetafieldOperation(
+        /** @type {'add'|'update'|'remove'|'clear'} */ (operation),
+        {
+          productGids,
+          definition,
+          editorValue: prepared,
+        },
+      );
+      setResultSummary(result);
+      if (result.failed > 0 || result.errors?.length) {
+        setStatus('partial');
+        setErrorMessage(result.errors?.[0] ?? 'Some updates failed');
+      } else {
+        setStatus('success');
+      }
+      // Keep metafield + operation; reset values for another apply
+      setEditorValue(listType || operation === 'add' || operation === 'remove' ? [] : '');
+      setClearConfirm('');
+    } catch (err) {
+      setStatus('error');
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  const operations = listType
+    ? ['add', 'update', 'remove', 'clear']
+    : ['update', 'clear'];
+
+  const heading = i18n.translate(isBulk ? 'heading-bulk' : 'heading');
+  const description = isBulk
+    ? i18n.translate('description-bulk', { count })
+    : i18n.translate('description');
 
   return (
-    <s-admin-action heading={ i18n.translate('heading') }>
-      { isSuccess ? (
-        <s-button slot="primary-action" onClick={ () => { close(); } }>
-          { i18n.translate('done') }
-        </s-button>
-      ) : (
-        <s-button
-          slot="primary-action"
-          disabled={ !canSubmit }
-          loading={ isSubmitting }
-          onClick={ runSubmit }
-        >
-          { i18n.translate('submit') }
-        </s-button>
-      ) }
-      <s-button slot="secondary-actions" onClick={ () => { close(); } }>
-        { i18n.translate('close') }
+    <s-admin-action heading={heading}>
+      <s-button
+        slot="primary-action"
+        disabled={!canApply}
+        loading={status === 'running'}
+        onClick={apply}
+      >
+        {operation === 'clear'
+          ? i18n.translate('clear-action')
+          : i18n.translate('apply')}
+      </s-button>
+      <s-button slot="secondary-actions" onClick={() => close()}>
+        {status === 'success' || status === 'partial'
+          ? i18n.translate('done')
+          : i18n.translate('close')}
       </s-button>
 
       <s-stack direction="block" gap="base">
-        <s-text>{ i18n.translate('description', { count }) }</s-text>
+        <s-text>{description}</s-text>
 
-        { count === 0 && (
+        {count === 0 && (
           <s-banner tone="warning">
-            <s-text>{ i18n.translate('no-products') }</s-text>
+            <s-text>{i18n.translate('no-products')}</s-text>
           </s-banner>
-        ) }
+        )}
 
-        { defsStatus === 'loading' && (
+        {defsLoading && (
           <s-stack direction="inline" gap="base" alignItems="center">
             <s-spinner />
-            <s-text>{ i18n.translate('loading-definitions') }</s-text>
+            <s-text>{i18n.translate('loading-definitions')}</s-text>
           </s-stack>
-        ) }
+        )}
 
-        { defsStatus === 'error' && (
+        {defsError && (
           <s-banner tone="critical">
-            <s-text>{ i18n.translate('definitions-error') } { defsError }</s-text>
+            <s-text>{defsError}</s-text>
           </s-banner>
-        ) }
+        )}
 
-        { defsStatus === 'ready' && definitions.length === 0 && (
+        {!defsLoading && !defsError && definitions.length === 0 && (
           <s-banner tone="warning">
-            <s-text>{ i18n.translate('no-definitions') }</s-text>
+            <s-text>{i18n.translate('no-definitions')}</s-text>
           </s-banner>
-        ) }
+        )}
 
-        { defsStatus === 'ready' && definitions.length > 0 && !isSuccess && (
+        {!defsLoading && definitions.length > 0 && (
           <s-stack direction="block" gap="base">
-            <s-select
-              label={ i18n.translate('metafield-label') }
-              value={ selectedKey }
-              disabled={ formLocked }
-              onChange={ (e) => onSelectDefinition(e.currentTarget.value) }
-            >
-              { definitions.map((d) => (
-                <s-option key={ defKey(d) } value={ defKey(d) }>
-                  { `${ d.name } (${ defKey(d) })` }
-                </s-option>
-              )) }
-            </s-select>
-
-            <s-stack direction="inline" gap="small">
-              <s-button
-                variant={ action === 'set' ? 'primary' : 'secondary' }
-                disabled={ formLocked }
-                onClick={ () => onPickAction('set') }
-              >
-                { i18n.translate('action-set') }
-              </s-button>
-              <s-button
-                variant={ action === 'delete' ? 'primary' : 'secondary' }
-                disabled={ formLocked }
-                onClick={ () => onPickAction('delete') }
-              >
-                { i18n.translate('action-delete') }
-              </s-button>
-              {/* Later: Add items / Remove items when listMode */}
-            </s-stack>
-
-            { action === 'delete' && selected && (
-              <s-text-field
-                label={ i18n.translate('delete-confirm-label', {
-                  namespace: selected.namespace,
-                  key: selected.key,
-                  count,
-                }) }
-                value={ deleteConfirm }
-                disabled={ formLocked }
-                onChange={ (e) => setDeleteConfirm(e.currentTarget.value) }
-              />
-            ) }
-
-            { action === 'set' && selected && !listMode && (
-              <ScalarInput
-                type={ selected.type }
-                value={ scalarValue }
-                disabled={ formLocked }
-                label={ i18n.translate('value-label') }
-                i18n={ i18n }
-                onChange={ setScalarValue }
-              />
-            ) }
-
-            { action === 'set' && selected && listMode && (
-              <s-stack direction="block" gap="base">
-                <s-stack direction="inline" gap="small" alignItems="end">
-                  <s-box inlineSize="100%">
-                    <ScalarInput
-                      type={ scalarTypeOf(selected.type) }
-                      value={ listDraft }
-                      disabled={ formLocked }
-                      label={ i18n.translate('value-label') }
-                      i18n={ i18n }
-                      onChange={ setListDraft }
-                    />
-                  </s-box>
-                  <s-button disabled={ formLocked } onClick={ tryAddListItem }>
-                    { i18n.translate('list-add') }
-                  </s-button>
-                </s-stack>
-
-                { listItems.length === 0 ? (
-                  <s-text color="subdued">{ i18n.translate('list-empty') }</s-text>
-                ) : (
-                  <s-stack direction="inline" gap="small">
-                    { listItems.map((item) => (
-                      <s-stack key={ item } direction="inline" gap="none" alignItems="center">
-                        <s-badge>{ item }</s-badge>
-                        <s-button
-                          variant="tertiary"
-                          disabled={ formLocked }
-                          accessibilityLabel={ `Remove ${ item }` }
-                          onClick={ () => removeListItem(item) }
-                        >
-                          <s-icon type="x-circle" />
-                        </s-button>
-                      </s-stack>
-                    )) }
-                  </s-stack>
-                ) }
+            <s-text type="strong">{i18n.translate('select-metafield')}</s-text>
+            {definition ? (
+              <s-stack direction="block" gap="small-200">
+                <s-text>{definitionLabel(definition)}</s-text>
+                <s-text color="subdued">{definition.type}</s-text>
+                <s-button onClick={openMetafieldPicker}>
+                  {i18n.translate('change-metafield')}
+                </s-button>
               </s-stack>
-            ) }
+            ) : (
+              <s-button onClick={openMetafieldPicker}>
+                {i18n.translate('select-metafield-placeholder')}
+              </s-button>
+            )}
           </s-stack>
-        ) }
+        )}
 
-        { isSubmitting && (
+        {definition && !supported && (
+          <s-banner tone="warning">
+            <s-text>{i18n.translate('type-unsupported')}</s-text>
+          </s-banner>
+        )}
+
+        {definition && supported && (
+          <s-stack direction="block" gap="base">
+            <s-choice-list
+              label={i18n.translate('operation')}
+              name="operation"
+              values={operation ? [operation] : []}
+              onChange={(e) => {
+                const values = e?.currentTarget?.values ?? e;
+                const next = Array.isArray(values) ? values[0] : values;
+                if (next) selectOperation(String(next));
+              }}
+            >
+              {operations.map((op) => (
+                <s-choice key={op} value={op}>
+                  {i18n.translate(`op-${op}`)}
+                </s-choice>
+              ))}
+            </s-choice-list>
+
+            {operation && (
+              <s-text color="subdued">{i18n.translate(`op-${operation}-help`)}</s-text>
+            )}
+
+            {operation === 'clear' && (
+              <s-text-field
+                label={i18n.translate('clear-confirm-label')}
+                placeholder={i18n.translate('clear-confirm-placeholder')}
+                value={clearConfirm}
+                onChange={(e) => setClearConfirm(e.currentTarget.value)}
+              />
+            )}
+
+            {operation && operation !== 'clear' && (
+              <ValueEditor
+                definition={definition}
+                operation={operation}
+                value={editorValue}
+                onChange={setEditorValue}
+                onError={(message) => {
+                  setStatus('error');
+                  setErrorMessage(message);
+                }}
+                i18n={i18n}
+              />
+            )}
+          </s-stack>
+        )}
+
+        {status === 'running' && (
           <s-stack direction="inline" gap="base" alignItems="center">
             <s-spinner />
-            <s-text>{ i18n.translate('editing') }</s-text>
+            <s-text>{i18n.translate('editing')}</s-text>
           </s-stack>
-        ) }
+        )}
 
-        { isSuccess && (
-          <s-banner tone="success">
-            <s-text>{ i18n.translate('success', { count }) }</s-text>
+        {(status === 'success' || status === 'partial') && resultSummary && (
+          <s-banner tone={status === 'success' ? 'success' : 'warning'}>
+            <s-text>
+              {i18n.translate('success', {
+                success: resultSummary.success,
+                total: resultSummary.total,
+              })}
+            </s-text>
+            {status === 'partial' && (
+              <s-text>{i18n.translate('partial-note')}</s-text>
+            )}
           </s-banner>
-        ) }
+        )}
 
-        { isError && (
-          <s-stack direction="block" gap="base">
-            <s-banner tone="critical">
-              <s-text>{ i18n.translate('error', { message: errorMessage }) }</s-text>
-            </s-banner>
-            <s-banner tone="warning">
-              <s-text>{ i18n.translate('partial-note') }</s-text>
-            </s-banner>
-          </s-stack>
-        ) }
+        {status === 'error' && (
+          <s-banner tone="critical">
+            <s-text>{i18n.translate('error', { message: errorMessage })}</s-text>
+            <s-text>{i18n.translate('partial-note')}</s-text>
+          </s-banner>
+        )}
       </s-stack>
     </s-admin-action>
-  );
-}
-
-function ScalarInput({ type, value, disabled, label, i18n, onChange }) {
-  if (type === 'boolean') {
-    return (
-      <s-select
-        label={ label }
-        value={ value || 'true' }
-        disabled={ disabled }
-        onChange={ (e) => onChange(e.currentTarget.value) }
-      >
-        <s-option value="true">{ i18n.translate('boolean-true') }</s-option>
-        <s-option value="false">{ i18n.translate('boolean-false') }</s-option>
-      </s-select>
-    );
-  }
-
-  if (type === 'number_integer' || type === 'number_decimal') {
-    return (
-      <s-number-field
-        label={ label }
-        value={ value }
-        disabled={ disabled }
-        step={ type === 'number_integer' ? 1 : 0.01 }
-        onChange={ (e) => onChange(e.currentTarget.value) }
-      />
-    );
-  }
-
-  return (
-    <s-text-field
-      label={ label }
-      value={ value }
-      disabled={ disabled }
-      onChange={ (e) => onChange(e.currentTarget.value) }
-    />
   );
 }
