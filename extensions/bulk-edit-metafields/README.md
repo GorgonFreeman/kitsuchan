@@ -1,9 +1,16 @@
 # Bulk edit metafields
 
-Admin action to bulk edit a product metafield from the product index (or a single product’s More actions).
+Admin action for bulk product metafield edits from the product index (or a single product’s More actions).
 
+## Flow
 1. Select products → More actions → **Bulk edit metafields**
-2. Choose a metafield definition
-3. Choose Add / Update / Remove / Clear (list types get all four)
-4. Enter values with type-aware inputs (chips for lists, resource/metaobject pickers for references)
-5. Apply — modal stays open so you can run another change on the same selection
+2. Add one or more **changes** (metafield + Add/Update/Remove/Clear + values)
+3. See a **sample of current values** for each selected metafield
+4. **Review** — dry-run stats and examples per change
+5. **Apply all changes** — sequential writes; session-only result summary (no re-run)
+
+## Features
+- All product metafield types (pickers for product/collection/variant/metaobject; GID paste for other refs; measurement/money/rating/link/json editors)
+- Multi-rule batching
+- CSV / paste import for list values
+- Dry-run confirmation before write
