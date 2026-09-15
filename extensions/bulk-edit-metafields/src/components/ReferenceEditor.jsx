@@ -1,17 +1,20 @@
 /** @jsxImportSource preact */
+import { useState } from 'preact/hooks';
 import {
   fetchMetaobjectType,
   fetchMetaobjects,
 } from '../operations.js';
 import {
-  baseType,
+  isMetaobjectRefType,
+  isResourcePickerType,
   metaobjectDefinitionId,
+  parsePasteTokens,
   resourcePickerType,
 } from '../valueCodec.js';
 
 /**
- * Reference value editor — resourcePicker for product/collection/variant,
- * Picker API for metaobjects.
+ * Reference editor — resourcePicker / metaobject picker when possible,
+ * otherwise GID paste (pages, files, customers, etc.).
  */
 export function ReferenceEditor({
   definition,
@@ -20,15 +23,18 @@ export function ReferenceEditor({
   multiple,
   pickLabel,
   onError,
+  i18n,
 }) {
+  const [gidPaste, setGidPaste] = useState('');
   const items = Array.isArray(values) ? values : values ? [values] : [];
   const typeName = definition.type;
   const pickerType = resourcePickerType(typeName);
-  const isMetaobject = baseType(typeName) === 'metaobject_reference';
+  const canPick =
+    isResourcePickerType(typeName) || isMetaobjectRefType(typeName);
 
   async function pickResources() {
     try {
-      if (isMetaobject) {
+      if (isMetaobjectRefType(typeName)) {
         await pickMetaobjects();
         return;
       }
@@ -44,11 +50,8 @@ export function ReferenceEditor({
         id: r.id,
         label: r.title ?? r.name ?? r.displayName ?? r.id,
       }));
-      if (multiple) {
-        onChange(mergeById(items, next));
-      } else {
-        onChange(next[0] ? [next[0]] : []);
-      }
+      if (multiple) onChange(mergeById(items, next));
+      else onChange(next[0] ? [next[0]] : []);
     } catch (err) {
       onError?.(err instanceof Error ? err.message : String(err));
     }
@@ -60,9 +63,7 @@ export function ReferenceEditor({
       throw new Error('This metafield has no metaobject definition constraint.');
     }
     const def = await fetchMetaobjectType(defId);
-    if (!def?.type) {
-      throw new Error('Could not load metaobject definition type.');
-    }
+    if (!def?.type) throw new Error('Could not load metaobject definition type.');
     const entries = await fetchMetaobjects(def.type);
     const picker = await shopify.picker({
       heading: def.name || 'Select metaobjects',
@@ -78,13 +79,25 @@ export function ReferenceEditor({
     const selectedIds = await picker.selected;
     if (!selectedIds) return;
     const idSet = new Set(selectedIds);
-    const next = entries
-      .filter((e) => idSet.has(e.id))
-      .map((e) => ({
-        id: e.id,
-        label: e.displayName || e.handle,
-      }));
+    onChange(
+      entries
+        .filter((e) => idSet.has(e.id))
+        .map((e) => ({ id: e.id, label: e.displayName || e.handle })),
+    );
+  }
+
+  function importGids() {
+    const tokens = parsePasteTokens(gidPaste);
+    if (!tokens.length) return;
+    let next = multiple ? [...items] : [];
+    for (const id of tokens) {
+      if (!next.some((i) => (i.id ?? i) === id)) {
+        next.push({ id, label: id });
+      }
+    }
+    if (!multiple) next = next.slice(-1);
     onChange(next);
+    setGidPaste('');
   }
 
   function removeAt(index) {
@@ -93,7 +106,21 @@ export function ReferenceEditor({
 
   return (
     <s-stack direction="block" gap="base">
-      <s-button onClick={pickResources}>{pickLabel}</s-button>
+      {canPick && <s-button onClick={pickResources}>{pickLabel}</s-button>}
+      {!canPick && (
+        <s-text color="subdued">
+          {i18n.translate('gid-paste-help')}
+        </s-text>
+      )}
+      <s-text-area
+        label={i18n.translate('paste-gids')}
+        value={gidPaste}
+        rows={2}
+        onChange={(e) => setGidPaste(e.currentTarget.value)}
+      />
+      <s-button disabled={!gidPaste.trim()} onClick={importGids}>
+        {i18n.translate('add-gids')}
+      </s-button>
       {items.length > 0 && (
         <s-stack direction="inline" gap="small-200">
           {items.map((item, index) => (
@@ -119,7 +146,6 @@ function mergeById(existing, additions) {
   return out;
 }
 
-/** Flatten reference editor state to GID strings for encode. */
 export function referenceGids(state) {
   const list = Array.isArray(state) ? state : state ? [state] : [];
   return list.map((item) => (typeof item === 'string' ? item : item.id)).filter(Boolean);

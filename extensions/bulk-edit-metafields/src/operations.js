@@ -1,10 +1,12 @@
 import { adminGraphql, chunk } from './adminGraphql.js';
 import {
   encodeMetafieldValue,
+  formatDisplayValue,
   isListType,
   mergeUnique,
   parseMetafieldValue,
   removeMatches,
+  valuesEqual,
 } from './valueCodec.js';
 
 const DEFINITIONS_QUERY = `#graphql
@@ -28,6 +30,7 @@ const PRODUCTS_METAFIELD_QUERY = `#graphql
     nodes(ids: $ids) {
       ... on Product {
         id
+        title
         metafield(namespace: $namespace, key: $key) {
           id
           value
@@ -116,7 +119,7 @@ export async function fetchMetaobjects(type) {
   return all;
 }
 
-async function readProductMetafields(productGids, namespace, key) {
+export async function readProductMetafields(productGids, namespace, key) {
   const results = [];
   for (const ids of chunk(productGids, 25)) {
     const data = await adminGraphql(PRODUCTS_METAFIELD_QUERY, { ids, namespace, key });
@@ -125,6 +128,107 @@ async function readProductMetafields(productGids, namespace, key) {
     }
   }
   return results;
+}
+
+/** Sample current values for a metafield across selected products. */
+export async function sampleMetafieldValues(productGids, definition, limit = 5) {
+  const sampleIds = productGids.slice(0, Math.min(25, productGids.length));
+  const products = await readProductMetafields(sampleIds, definition.namespace, definition.key);
+  const withValue = products.filter((p) => p.metafield?.value != null && p.metafield.value !== '');
+  const samples = withValue.slice(0, limit).map((p) => ({
+    productId: p.id,
+    title: p.title,
+    display: formatDisplayValue(definition.type, parseMetafieldValue(definition.type, p.metafield.value)),
+  }));
+  return {
+    sampled: sampleIds.length,
+    withValue: withValue.length,
+    withoutValue: sampleIds.length - withValue.length,
+    samples,
+  };
+}
+
+function nextValueForProduct(type, operation, current, editorValue) {
+  if (operation === 'clear') return null;
+  if (operation === 'update') return editorValue;
+  if (!isListType(type)) return editorValue;
+  const list = Array.isArray(current) ? current : [];
+  const items = Array.isArray(editorValue) ? editorValue : [editorValue];
+  if (operation === 'add') return mergeUnique(list, items);
+  return removeMatches(list, items);
+}
+
+/** Dry-run one rule against selected products (no writes). */
+export async function dryRunRule(productGids, { definition, operation, editorValue }) {
+  const { namespace, key, type } = definition;
+  const products = await readProductMetafields(productGids, namespace, key);
+  const byId = new Map(products.map((p) => [p.id, p]));
+
+  let willChange = 0;
+  let unchanged = 0;
+  let missing = 0;
+  const examples = [];
+
+  for (const ownerId of productGids) {
+    const product = byId.get(ownerId);
+    const raw = product?.metafield?.value;
+    const hasValue = raw != null && raw !== '';
+    if (!hasValue) missing += 1;
+
+    const current = parseMetafieldValue(type, raw);
+    if (operation === 'clear') {
+      if (hasValue) {
+        willChange += 1;
+        if (examples.length < 3) {
+          examples.push({
+            title: product?.title ?? ownerId,
+            from: formatDisplayValue(type, current),
+            to: '—',
+          });
+        }
+      } else {
+        unchanged += 1;
+      }
+      continue;
+    }
+
+    const next = nextValueForProduct(type, operation, current, editorValue);
+    const same =
+      operation === 'update'
+        ? hasValue && valuesEqual(current, next)
+        : valuesEqual(current, next);
+
+    if (same) {
+      unchanged += 1;
+    } else {
+      willChange += 1;
+      if (examples.length < 3) {
+        examples.push({
+          title: product?.title ?? ownerId,
+          from: formatDisplayValue(type, current),
+          to: formatDisplayValue(type, next),
+        });
+      }
+    }
+  }
+
+  return {
+    definition,
+    operation,
+    total: productGids.length,
+    willChange,
+    unchanged,
+    missing,
+    examples,
+  };
+}
+
+export async function dryRunRules(productGids, rules) {
+  const reports = [];
+  for (const rule of rules) {
+    reports.push(await dryRunRule(productGids, rule));
+  }
+  return reports;
 }
 
 async function setMetafields(inputs) {
@@ -159,17 +263,12 @@ async function deleteMetafields(identifiers) {
       success += deleted;
       failed += Math.max(0, batch.length - deleted);
     } else {
-      // Missing metafields still count as cleared for the merchant
       success += batch.length;
     }
   }
   return { success, failed, errors };
 }
 
-/**
- * @param {'add'|'update'|'remove'|'clear'} operation
- * @param {{ productGids: string[], definition: object, editorValue: any }} opts
- */
 export async function runBulkMetafieldOperation(operation, { productGids, definition, editorValue }) {
   const { namespace, key, type } = definition;
   const total = productGids.length;
@@ -177,7 +276,7 @@ export async function runBulkMetafieldOperation(operation, { productGids, defini
   if (operation === 'clear') {
     const identifiers = productGids.map((ownerId) => ({ ownerId, namespace, key }));
     const result = await deleteMetafields(identifiers);
-    return { ...result, total };
+    return { ...result, total, definition, operation };
   }
 
   if (operation === 'update') {
@@ -190,7 +289,7 @@ export async function runBulkMetafieldOperation(operation, { productGids, defini
       value,
     }));
     const result = await setMetafields(inputs);
-    return { ...result, total };
+    return { ...result, total, definition, operation };
   }
 
   if (!isListType(type)) {
@@ -204,12 +303,10 @@ export async function runBulkMetafieldOperation(operation, { productGids, defini
 
   for (const ownerId of productGids) {
     const current = parseMetafieldValue(type, byId.get(ownerId)?.metafield?.value);
-    let next;
-    if (operation === 'add') {
-      next = mergeUnique(current, additions);
-    } else {
-      next = removeMatches(current, additions);
-    }
+    const next =
+      operation === 'add'
+        ? mergeUnique(current, additions)
+        : removeMatches(current, additions);
     inputs.push({
       ownerId,
       namespace,
@@ -220,5 +317,20 @@ export async function runBulkMetafieldOperation(operation, { productGids, defini
   }
 
   const result = await setMetafields(inputs);
-  return { ...result, total };
+  return { ...result, total, definition, operation };
+}
+
+/** Run multiple rules sequentially. */
+export async function runBulkMetafieldRules(productGids, rules) {
+  const results = [];
+  for (const rule of rules) {
+    results.push(
+      await runBulkMetafieldOperation(rule.operation, {
+        productGids,
+        definition: rule.definition,
+        editorValue: rule.editorValue,
+      }),
+    );
+  }
+  return results;
 }
