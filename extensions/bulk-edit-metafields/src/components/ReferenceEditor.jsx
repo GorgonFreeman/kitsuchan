@@ -13,7 +13,8 @@ import {
 } from '../valueCodec.js';
 
 /**
- * Reference editor — native pickers for product/collection/variant/metaobject.
+ * Reference editor - native pickers for product/collection/variant/metaobject.
+ * Metaobject picker shows display names + color/image thumbnails (Shopify-like).
  * GID paste only for reference types without a picker.
  */
 export function ReferenceEditor({
@@ -74,14 +75,9 @@ export function ReferenceEditor({
       const def = await fetchMetaobjectType(defId);
       if (!def?.type) continue;
       typeNames.push(def.name || def.type);
-      const nodes = await fetchMetaobjects(def.type);
+      const nodes = await fetchMetaobjects(def.type, def);
       for (const entry of nodes) {
-        entries.push({
-          id: entry.id,
-          handle: entry.handle,
-          displayName: entry.displayName || entry.handle,
-          typeLabel: def.name || def.type,
-        });
+        entries.push(entry);
       }
     }
 
@@ -97,17 +93,12 @@ export function ReferenceEditor({
     const picker = await shopify.picker({
       heading,
       multiple: Boolean(multiple),
-      headers: [
-        { content: 'Handle' },
-        ...(typeNames.length > 1 ? [{ content: 'Type' }] : []),
-      ],
+      headers: typeNames.length > 1 ? [{ content: 'Type' }] : undefined,
       items: entries.map((entry) => ({
         id: entry.id,
         heading: entry.displayName,
-        data:
-          typeNames.length > 1
-            ? [entry.handle, entry.typeLabel]
-            : [entry.handle],
+        data: typeNames.length > 1 ? [entry.typeLabel] : undefined,
+        thumbnail: entry.thumbnailUrl ? { url: entry.thumbnailUrl } : undefined,
         selected: items.some((i) => i.id === entry.id),
       })),
     });
@@ -119,7 +110,12 @@ export function ReferenceEditor({
     onChange(
       entries
         .filter((e) => idSet.has(e.id))
-        .map((e) => ({ id: e.id, label: e.displayName })),
+        .map((e) => ({
+          id: e.id,
+          label: e.displayName,
+          thumbnailUrl: e.thumbnailUrl,
+          color: e.color,
+        })),
     );
   }
 
@@ -169,15 +165,16 @@ export function ReferenceEditor({
       )}
 
       {items.length > 0 && (
-        <s-stack direction="inline" gap="small-200">
+        <s-stack direction="inline" gap="small-200" alignItems="center">
           {items.map((item, index) => (
-            <s-clickable-chip
-              key={item.id ?? index}
-              removable
-              onRemove={() => removeAt(index)}
-            >
-              {item.label ?? item.id}
-            </s-clickable-chip>
+            <s-stack key={item.id ?? index} direction="inline" gap="small-200" alignItems="center">
+              {item.thumbnailUrl && (
+                <s-thumbnail src={item.thumbnailUrl} alt={item.label ?? ''} size="small" />
+              )}
+              <s-clickable-chip removable onRemove={() => removeAt(index)}>
+                {item.label ?? item.id}
+              </s-clickable-chip>
+            </s-stack>
           ))}
         </s-stack>
       )}

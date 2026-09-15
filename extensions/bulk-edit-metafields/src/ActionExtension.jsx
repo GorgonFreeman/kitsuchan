@@ -319,11 +319,13 @@ function Extension() {
                   })}
                 </s-text>
                 <s-text color="subdued">
-                  {summarizeRuleValue(
-                    report.definition.type,
-                    report.operation,
-                    resolvedRules[index]?.editorValue,
-                  )}
+                  {report.valueLabel ||
+                    summarizeRuleValue(
+                      report.definition.type,
+                      report.operation,
+                      resolvedRules[index]?.editorValue,
+                      report.labelMap,
+                    )}
                 </s-text>
                 <s-text>
                   {i18n.translate('review-stats', {
@@ -357,19 +359,45 @@ function Extension() {
         {step === 'result' && runResults && (
           <s-stack direction="block" gap="base">
             <s-banner tone={runResults.some((r) => r.failed > 0) ? 'warning' : 'success'}>
-              <s-text type="strong">{i18n.translate('session-result')}</s-text>
-              {runResults.map((result, index) => (
-                <s-text key={index}>
-                  {i18n.translate('success', {
-                    index: index + 1,
-                    success: result.success,
-                    total: result.total,
-                  })}
+              <s-stack direction="block" gap="small-200">
+                <s-text type="strong">
+                  {i18n.translate(
+                    runResults.some((r) => r.failed > 0)
+                      ? 'result-partial'
+                      : 'result-success',
+                  )}
                 </s-text>
-              ))}
-              {runResults.some((r) => r.failed > 0) && (
-                <s-text>{i18n.translate('partial-note')}</s-text>
-              )}
+                {runResults.map((result, index) => {
+                  const metafield =
+                    result.definition?.name ||
+                    (result.definition
+                      ? `${result.definition.namespace}.${result.definition.key}`
+                      : `Change ${index + 1}`);
+                  const op = result.operation
+                    ? i18n.translate(`op-${result.operation}`)
+                    : '';
+                  const lineKey =
+                    result.failed > 0
+                      ? 'result-line-failed'
+                      : result.operation === 'clear'
+                        ? 'result-line-clear'
+                        : 'result-line';
+                  return (
+                    <s-text key={index}>
+                      {i18n.translate(lineKey, {
+                        op,
+                        metafield,
+                        success: result.success,
+                        total: result.total,
+                        failed: result.failed,
+                      })}
+                    </s-text>
+                  );
+                })}
+                {runResults.some((r) => r.failed > 0) && (
+                  <s-text>{i18n.translate('partial-note')}</s-text>
+                )}
+              </s-stack>
             </s-banner>
           </s-stack>
         )}
