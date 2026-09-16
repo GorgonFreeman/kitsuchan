@@ -11,6 +11,7 @@ import {
 import {
   dryRunRules,
   fetchAllProductMetafieldDefinitions,
+  fetchProductIdsByQuery,
   runBulkMetafieldRules,
   sampleMetafieldValues,
 } from './operations.js';
@@ -45,10 +46,17 @@ function Extension() {
   const { close, data, i18n, extension } = shopify;
   const isBulk = String(extension.target) === BULK_TARGET;
 
-  const productGids = (data.selected ?? [])
+  const selectedFromAdmin = (data.selected ?? [])
     .map((item) => item?.id)
     .filter(Boolean);
-  const count = productGids.length;
+
+  const [productGids, setProductGids] = useState(selectedFromAdmin);
+  const [scopeMode, setScopeMode] = useState('selected'); // selected | search | all
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [scopeTruncated, setScopeTruncated] = useState(false);
+  const [scopeLoaded, setScopeLoaded] = useState(selectedFromAdmin.length > 0);
 
   const [definitions, setDefinitions] = useState([]);
   const [defsLoading, setDefsLoading] = useState(true);
@@ -59,6 +67,10 @@ function Extension() {
   const [runResults, setRunResults] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [samplesByRule, setSamplesByRule] = useState({});
+
+  const count = productGids.length;
+  const showSelectAllWarning =
+    isBulk && scopeMode === 'selected' && selectedFromAdmin.length >= 50;
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +92,59 @@ function Extension() {
       cancelled = true;
     };
   }, []);
+
+  function changeScope(mode) {
+    setScopeMode(mode);
+    setScopeTruncated(false);
+    setErrorMessage('');
+    setStep('edit');
+    setRunResults(null);
+    setSamplesByRule({});
+    if (mode === 'selected') {
+      setProductGids(selectedFromAdmin);
+      setScopeLoaded(selectedFromAdmin.length > 0);
+      setLoadProgress(selectedFromAdmin.length);
+    } else {
+      setProductGids([]);
+      setScopeLoaded(false);
+      setLoadProgress(0);
+    }
+  }
+
+  async function loadScopedProducts() {
+    if (scopeMode === 'selected') {
+      setProductGids(selectedFromAdmin);
+      setScopeLoaded(selectedFromAdmin.length > 0);
+      return;
+    }
+    if (scopeMode === 'search' && !searchQuery.trim()) {
+      setErrorMessage(i18n.translate('scope-search-help'));
+      return;
+    }
+    setLoadingProducts(true);
+    setLoadProgress(0);
+    setScopeTruncated(false);
+    setErrorMessage('');
+    try {
+      const result = await fetchProductIdsByQuery(
+        scopeMode === 'all' ? null : searchQuery,
+        {
+          onProgress: (n) => setLoadProgress(n),
+          maxProducts: 5000,
+        },
+      );
+      setProductGids(result.ids);
+      setScopeLoaded(true);
+      setScopeTruncated(result.truncated);
+      setSamplesByRule({});
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+      setProductGids([]);
+      setScopeLoaded(false);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }
 
   function updateRule(id, patch) {
     setRules((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -114,7 +179,11 @@ function Extension() {
   }
 
   const resolvedRules = rules.map(resolveRule);
-  const allReady = count > 0 && resolvedRules.every(Boolean);
+  const allReady =
+    count > 0 &&
+    scopeLoaded &&
+    !loadingProducts &&
+    resolvedRules.every(Boolean);
 
   async function openMetafieldPicker(ruleId, currentId) {
     try {
@@ -142,7 +211,7 @@ function Extension() {
         editorValue: null,
         clearConfirm: '',
       });
-      if (definition) {
+      if (definition && productGids.length) {
         loadSample(ruleId, definition);
       }
     } catch (err) {
@@ -169,6 +238,10 @@ function Extension() {
   }
 
   async function goToReview() {
+    if (!scopeLoaded || count === 0) {
+      setErrorMessage(i18n.translate('scope-need-load'));
+      return;
+    }
     if (!allReady) {
       setErrorMessage(i18n.translate('rules-incomplete'));
       return;
@@ -206,6 +279,7 @@ function Extension() {
 
   const primaryDisabled =
     step === 'running' ||
+    loadingProducts ||
     (step === 'edit' && !allReady) ||
     (step === 'review' && dryRun.length === 0);
 
@@ -247,9 +321,15 @@ function Extension() {
       <s-stack direction="block" gap="base">
         <s-text>{description}</s-text>
 
-        {count === 0 && (
+        {count === 0 && !loadingProducts && (
           <s-banner tone="warning">
             <s-text>{i18n.translate('no-products')}</s-text>
+          </s-banner>
+        )}
+
+        {showSelectAllWarning && step === 'edit' && (
+          <s-banner tone="warning">
+            <s-text>{i18n.translate('scope-select-all-warning')}</s-text>
           </s-banner>
         )}
 
@@ -280,6 +360,75 @@ function Extension() {
 
         {step === 'edit' && !defsLoading && definitions.length > 0 && (
           <s-stack direction="block" gap="large">
+            {isBulk && (
+              <s-box padding="base" border="base" borderRadius="base">
+                <s-stack direction="block" gap="base">
+                  <s-choice-list
+                    label={i18n.translate('scope-label')}
+                    name="product-scope"
+                    values={[scopeMode]}
+                    onChange={(e) => {
+                      const values = e?.currentTarget?.values ?? e;
+                      const next = Array.isArray(values) ? values[0] : values;
+                      if (next) changeScope(String(next));
+                    }}
+                  >
+                    <s-choice value="selected">
+                      {i18n.translate('scope-selected')} ({selectedFromAdmin.length})
+                    </s-choice>
+                    <s-choice value="search">{i18n.translate('scope-search')}</s-choice>
+                    <s-choice value="all">{i18n.translate('scope-all')}</s-choice>
+                  </s-choice-list>
+
+                  {scopeMode === 'search' && (
+                    <s-text-field
+                      label={i18n.translate('scope-search-label')}
+                      details={i18n.translate('scope-search-help')}
+                      placeholder={i18n.translate('scope-search-placeholder')}
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.currentTarget.value);
+                        setScopeLoaded(false);
+                      }}
+                    />
+                  )}
+
+                  {(scopeMode === 'search' || scopeMode === 'all') && (
+                    <s-button
+                      loading={loadingProducts}
+                      disabled={loadingProducts}
+                      onClick={loadScopedProducts}
+                    >
+                      {i18n.translate('scope-load')}
+                    </s-button>
+                  )}
+
+                  {loadingProducts && (
+                    <s-stack direction="inline" gap="base" alignItems="center">
+                      <s-spinner />
+                      <s-text>
+                        {i18n.translate('scope-loading', { count: loadProgress })}
+                      </s-text>
+                    </s-stack>
+                  )}
+
+                  {!loadingProducts && scopeLoaded && (
+                    <s-text>
+                      {i18n.translate('scope-loaded', { count })}
+                    </s-text>
+                  )}
+
+                  {scopeTruncated && (
+                    <s-banner tone="warning">
+                      <s-text>
+                        {i18n.translate('scope-truncated', { count })}
+                      </s-text>
+                    </s-banner>
+                  )}
+                </s-stack>
+              </s-box>
+            )}
+
             {rules.map((rule, index) => (
               <RuleEditor
                 key={rule.id}
