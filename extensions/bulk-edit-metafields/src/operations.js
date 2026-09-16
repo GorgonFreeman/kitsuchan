@@ -149,6 +149,54 @@ const NODES_LABELS_QUERY = `#graphql
   }
 `;
 
+const PRODUCTS_BY_QUERY = `#graphql
+  query ProductsByQuery($first: Int!, $after: String, $query: String) {
+    products(first: $first, after: $after, query: $query) {
+      pageInfo { hasNextPage endCursor }
+      nodes { id title }
+    }
+  }
+`;
+
+/**
+ * Paginate all product IDs matching an Admin search query.
+ * Pass empty/null query for the full catalog.
+ * @param {string | null | undefined} query
+ * @param {{ onProgress?: (loaded: number) => void, maxProducts?: number }} [opts]
+ */
+export async function fetchProductIdsByQuery(query, opts = {}) {
+  const maxProducts = opts.maxProducts ?? 5000;
+  const onProgress = opts.onProgress;
+  const all = [];
+  let after = null;
+  let hasNextPage = true;
+  const q = typeof query === 'string' && query.trim() ? query.trim() : null;
+
+  while (hasNextPage) {
+    const data = await adminGraphql(PRODUCTS_BY_QUERY, {
+      first: 50,
+      after,
+      query: q,
+    });
+    const conn = data?.products;
+    for (const node of conn?.nodes ?? []) {
+      if (node?.id) all.push(node.id);
+    }
+    onProgress?.(all.length);
+    if (all.length >= maxProducts) {
+      return {
+        ids: all.slice(0, maxProducts),
+        truncated: true,
+        totalLoaded: all.length,
+      };
+    }
+    hasNextPage = Boolean(conn?.pageInfo?.hasNextPage);
+    after = conn?.pageInfo?.endCursor ?? null;
+  }
+
+  return { ids: all, truncated: false, totalLoaded: all.length };
+}
+
 export async function fetchAllProductMetafieldDefinitions() {
   const all = [];
   let after = null;
