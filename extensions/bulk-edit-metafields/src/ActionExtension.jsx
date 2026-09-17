@@ -22,7 +22,8 @@ import {
   summarizeRuleValue,
 } from './valueCodec.js';
 
-const BULK_TARGET = 'admin.product-index.selection-action.render';
+const SELECTION_TARGET = 'admin.product-index.selection-action.render';
+const INDEX_ACTION_TARGET = 'admin.product-index.action.render';
 
 function newRuleId() {
   return `rule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -44,14 +45,18 @@ export default async () => {
 
 function Extension() {
   const { close, data, i18n, extension } = shopify;
-  const isBulk = String(extension.target) === BULK_TARGET;
+  const target = String(extension.target);
+  const isBulk = target === SELECTION_TARGET || target === INDEX_ACTION_TARGET;
+  const isIndexAction = target === INDEX_ACTION_TARGET;
 
   const selectedFromAdmin = (data.selected ?? [])
     .map((item) => item?.id)
     .filter(Boolean);
 
   const [productGids, setProductGids] = useState(selectedFromAdmin);
-  const [scopeMode, setScopeMode] = useState('selected'); // selected | search | all
+  const [scopeMode, setScopeMode] = useState(
+    isIndexAction || selectedFromAdmin.length === 0 ? 'search' : 'selected',
+  ); // selected | search | all
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
@@ -373,9 +378,11 @@ function Extension() {
                       if (next) changeScope(String(next));
                     }}
                   >
-                    <s-choice value="selected">
-                      {i18n.translate('scope-selected')} ({selectedFromAdmin.length})
-                    </s-choice>
+                    {!isIndexAction && (
+                      <s-choice value="selected">
+                        {i18n.translate('scope-selected')} ({selectedFromAdmin.length})
+                      </s-choice>
+                    )}
                     <s-choice value="search">{i18n.translate('scope-search')}</s-choice>
                     <s-choice value="all">{i18n.translate('scope-all')}</s-choice>
                   </s-choice-list>
