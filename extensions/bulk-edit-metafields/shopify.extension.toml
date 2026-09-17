@@ -19,3 +19,13 @@ uid = "7c1744a3-48eb-4012-a1b1-dd0588f089ca"
 [[extensions.targeting]]
 module = "./src/ActionExtension.jsx"
 target = "admin.product-index.selection-action.render"
+
+[[extensions]]
+name = "t:name"
+handle = "bulk-edit-metafields-index-action"
+type = "ui_extension"
+uid = "1776742b-a8b1-48df-bc3d-e1ff69a1bc17"
+
+[[extensions.targeting]]
+module = "./src/ActionExtension.jsx"
+target = "admin.product-index.action.render"
