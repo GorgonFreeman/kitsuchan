@@ -1,0 +1,22 @@
+api_version = "2026-04"
+uid = "060bb3e5-3ff1-1e89-03a4-b0daff4beb948ab22b0d"
+
+[[extensions]]
+name = "Free gift via line property"
+handle = "free-gift-via-line-property"
+type = "function"
+description = "100% off one line with a matching line item property when min spend is met"
+
+  [[extensions.targeting]]
+  target = "cart.lines.discounts.generate.run"
+  input_query = "src/cart_lines_discounts_generate_run.graphql"
+  export = "cart-lines-discounts-generate-run"
+
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+[extensions.input.variables]
+namespace = "$app"
+key = "function-configuration"
