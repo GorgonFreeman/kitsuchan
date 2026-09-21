@@ -3,6 +3,9 @@ query CartInput($collectionIds: [ID!]) {
     lines {
       id
       quantity
+      excludeAttribute: attribute(key: "_hoodie_bundle_exclude") {
+        value
+      }
       cost {
         amountPerQuantity {
           amount

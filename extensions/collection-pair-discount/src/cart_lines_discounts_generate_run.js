@@ -262,6 +262,10 @@ function expandEligibleUnits(lines) {
       continue;
     }
 
+    if (line.excludeAttribute?.value) {
+      continue;
+    }
+
     if (!line.merchandise.product?.inAnyCollection) {
       continue;
     }
