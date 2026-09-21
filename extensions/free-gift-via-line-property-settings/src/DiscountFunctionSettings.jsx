@@ -13,14 +13,12 @@ function App() {
   const {
     applyExtensionMetafieldChange,
     discountTitle,
-    ensureProductDiscountClass,
     i18n,
     initialDiscountTitle,
     initialLineProperty,
     initialMinSpend,
     initialRedemptions,
     lineProperty,
-    loading,
     minSpend,
     onDiscountTitleChange,
     onLinePropertyChange,
@@ -37,11 +35,7 @@ function App() {
     ensureProductDiscountClass().catch(() => {
       setError(i18n.translate('error'));
     });
-  }, [ ensureProductDiscountClass, i18n ]);
-
-  if (loading) {
-    return <s-text>{ i18n.translate('loading') }</s-text>;
-  }
+  }, [ i18n ]);
 
   return (
     <s-function-settings
@@ -103,11 +97,13 @@ function App() {
 function useExtensionData() {
   const { applyMetafieldChange, data, i18n, query } = shopify;
 
+  const metafieldValue = data?.metafields?.find(
+    (metafield) => metafield.key === 'function-configuration',
+  )?.value;
+
   const metafieldConfig = useMemo(
-    () => parseMetafield(
-      data?.metafields?.find((metafield) => metafield.key === 'function-configuration')?.value,
-    ),
-    [ data?.metafields ],
+    () => parseMetafield(metafieldValue),
+    [ metafieldValue ],
   );
 
   const [ lineProperty, setLineProperty ] = useState(metafieldConfig.lineProperty);
@@ -119,37 +115,42 @@ function useExtensionData() {
   const [ redemptions, setRedemptions ] = useState(metafieldConfig.redemptions);
   const [ initialRedemptions, setInitialRedemptions ] = useState(metafieldConfig.redemptions);
   const [ shopCurrencyCode, setShopCurrencyCode ] = useState('');
-  const [ loading, setLoading ] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setLineProperty(metafieldConfig.lineProperty);
-      setInitialLineProperty(metafieldConfig.lineProperty);
-      setMinSpend(metafieldConfig.minSpend);
-      setInitialMinSpend(metafieldConfig.minSpend);
-      setDiscountTitle(metafieldConfig.discountTitle);
-      setInitialDiscountTitle(metafieldConfig.discountTitle);
-      setRedemptions(metafieldConfig.redemptions);
-      setInitialRedemptions(metafieldConfig.redemptions);
-      setShopCurrencyCode(await getShopCurrencyCode(query));
-      setLoading(false);
+    setLineProperty(metafieldConfig.lineProperty);
+    setInitialLineProperty(metafieldConfig.lineProperty);
+    setMinSpend(metafieldConfig.minSpend);
+    setInitialMinSpend(metafieldConfig.minSpend);
+    setDiscountTitle(metafieldConfig.discountTitle);
+    setInitialDiscountTitle(metafieldConfig.discountTitle);
+    setRedemptions(metafieldConfig.redemptions);
+    setInitialRedemptions(metafieldConfig.redemptions);
+  }, [
+    metafieldConfig.lineProperty,
+    metafieldConfig.minSpend,
+    metafieldConfig.discountTitle,
+    metafieldConfig.redemptions,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getShopCurrencyCode(query)
+      .then((currencyCode) => {
+        if (!cancelled) {
+          setShopCurrencyCode(currencyCode);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setShopCurrencyCode('');
+        }
+      });
+
+    return () => {
+      cancelled = true;
     };
-
-    load();
-  }, [ metafieldConfig, query ]);
-
-  const ensureProductDiscountClass = async () => {
-    const discountClasses = shopify.discounts?.discountClasses?.value ?? [];
-    if (discountClasses.includes('product') && discountClasses.length === 1) {
-      return;
-    }
-
-    const result = await shopify.discounts?.updateDiscountClasses?.([ 'product' ]);
-    if (!result?.success) {
-      throw new Error('Unable to update discount classes');
-    }
-  };
+  }, [ query ]);
 
   async function applyExtensionMetafieldChange() {
     const trimmedLineProperty = lineProperty.trim();
@@ -201,14 +202,12 @@ function useExtensionData() {
   return {
     applyExtensionMetafieldChange,
     discountTitle,
-    ensureProductDiscountClass,
     i18n,
     initialDiscountTitle,
     initialLineProperty,
     initialMinSpend,
     initialRedemptions,
     lineProperty,
-    loading,
     minSpend,
     onDiscountTitleChange: setDiscountTitle,
     onLinePropertyChange: setLineProperty,
@@ -220,6 +219,18 @@ function useExtensionData() {
     resetForm,
     shopCurrencyCode,
   };
+}
+
+async function ensureProductDiscountClass() {
+  const discountClasses = shopify.discounts?.discountClasses?.value ?? [];
+  if (discountClasses.includes('product') && discountClasses.length === 1) {
+    return;
+  }
+
+  const result = await shopify.discounts?.updateDiscountClasses?.([ 'product' ]);
+  if (!result?.success) {
+    throw new Error('Unable to update discount classes');
+  }
 }
 
 function parseMetafield(value) {
