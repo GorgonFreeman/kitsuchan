@@ -6,10 +6,8 @@ import {
 /**
   * @typedef {import("../generated/api").CartInput} RunInput
   * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
-  * @typedef {{ lineProperty: string, minSpendCents: number, discountTitle: string }} ParsedConfig
+  * @typedef {{ lineProperty: string, minSpendCents: number, discountTitle: string, redemptions: 'one' | 'multiple' }} ParsedConfig
   */
-
-const FREE_GIFT_CAP = 1;
 
 /**
   * @param {RunInput} input
@@ -45,13 +43,38 @@ export function cartLinesDiscountsGenerateRun(input) {
     qualifyingSubtotalCents += lineSubtotalCents(line);
   }
 
-  if (!giftLines.length || qualifyingSubtotalCents < minSpendPresentmentCents) {
+  const earnedFreeGifts = config.redemptions === 'multiple' && minSpendPresentmentCents > 0
+    ? Math.floor(qualifyingSubtotalCents / minSpendPresentmentCents)
+    : (qualifyingSubtotalCents >= minSpendPresentmentCents ? 1 : 0);
+
+  if (!giftLines.length || earnedFreeGifts < 1) {
     return { operations: [] };
   }
 
   giftLines.sort((left, right) => unitPriceCents(left) - unitPriceCents(right));
-  const giftLine = giftLines[ 0 ];
-  if (unitPriceCents(giftLine) <= 0) {
+
+  let remaining = earnedFreeGifts;
+  /** @type {{ cartLine: { id: string, quantity: number } }[]} */
+  const targets = [];
+  for (const giftLine of giftLines) {
+    if (remaining <= 0) {
+      break;
+    }
+    if (unitPriceCents(giftLine) <= 0) {
+      continue;
+    }
+
+    const quantity = Math.min(giftLine.quantity, remaining);
+    targets.push({
+      cartLine: {
+        id: giftLine.id,
+        quantity,
+      },
+    });
+    remaining -= quantity;
+  }
+
+  if (!targets.length) {
     return { operations: [] };
   }
 
@@ -64,14 +87,7 @@ export function cartLinesDiscountsGenerateRun(input) {
           candidates: [
             {
               ...(discountMessage ? { message: discountMessage } : {}),
-              targets: [
-                {
-                  cartLine: {
-                    id: giftLine.id,
-                    quantity: FREE_GIFT_CAP,
-                  },
-                },
-              ],
+              targets,
               value: {
                 percentage: {
                   value: 100,
@@ -103,6 +119,7 @@ function parseConfig(jsonValue) {
   const discountTitle = typeof config.discountTitle === 'string'
     ? config.discountTitle.trim()
     : '';
+  const redemptions = config.redemptions === 'multiple' ? 'multiple' : 'one';
 
   if (!lineProperty || minSpendCents == null || minSpendCents < 0) {
     return null;
@@ -112,6 +129,7 @@ function parseConfig(jsonValue) {
     lineProperty,
     minSpendCents,
     discountTitle,
+    redemptions,
   };
 }
 
