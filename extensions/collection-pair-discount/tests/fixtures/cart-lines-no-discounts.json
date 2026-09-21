@@ -8,6 +8,7 @@
           {
             "id": "gid://shopify/CartLine/0",
             "quantity": 1,
+            "excludeAttribute": null,
             "cost": {
               "subtotalAmount": {
                 "amount": "100.0"

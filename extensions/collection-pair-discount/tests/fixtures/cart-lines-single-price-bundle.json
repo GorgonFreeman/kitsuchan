@@ -8,6 +8,7 @@
           {
             "id": "gid://shopify/CartLine/10",
             "quantity": 1,
+            "excludeAttribute": null,
             "cost": {
               "amountPerQuantity": {
                 "amount": "10.0",
@@ -24,6 +25,7 @@
           {
             "id": "gid://shopify/CartLine/5",
             "quantity": 1,
+            "excludeAttribute": null,
             "cost": {
               "amountPerQuantity": {
                 "amount": "5.0",
