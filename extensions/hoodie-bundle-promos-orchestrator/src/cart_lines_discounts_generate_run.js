@@ -9,40 +9,54 @@ import {
  * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
  */
 
-/** @typedef {'none' | 'b2g1' | 'spend_save_percent' | 'spend_save_fixed' | 'b1g50' | 'hoodie_sweatpants_50'} PromoType */
+/** @typedef {'none' | 'b2g1' | 'b1g50' | 'b1hg50_sw' | 'spend_save_percent' | 'spend_save_fixed'} PromoOfTheDay */
 
 /**
  * @typedef {{
  *   hoodieBundle: string,
  *   b2g1: string,
  *   b1g50: string,
- *   hoodieSweatpants50: string,
+ *   b1hg50Sw: string,
  *   spendSavePercent: string,
  *   spendSaveFixed: string,
  * }} PromoMessages
  *
  * @typedef {{
+ *   qualifyCollectionIds: string[],
+ *   eligibleCollectionIds: string[],
+ *   percent: number,
+ * }} CollectionPromoSlot
+ *
+ * @typedef {{
+ *   minShopAmount: number,
+ *   value: number,
+ * }} SpendTierRow
+ *
+ * @typedef {{
  *   hoodieCollectionIds: string[],
- *   sweatpantsCollectionIds: string[],
  *   hoodieBundlePrice: number,
- *   promoType: PromoType,
+ *   promoOfTheDay: PromoOfTheDay,
+ *   b2g1: CollectionPromoSlot,
+ *   b1g50: CollectionPromoSlot,
+ *   b1hg50Sw: CollectionPromoSlot,
+ *   spendSavePercentTiers: SpendTierRow[],
+ *   spendSaveFixedTiers: SpendTierRow[],
  *   messages: PromoMessages,
  * }} ParsedConfig
  */
 
 /**
- * One sellable unit expanded from a cart line.
  * @typedef {{
  *   unitId: string,
  *   lineId: string,
  *   unitPriceCents: number,
  *   isHoodie: boolean,
- *   isSweatpants: boolean,
+ *   inPromoQualify: boolean,
+ *   inPromoEligible: boolean,
  * }} Unit
  */
 
 /**
- * Discount applied to a specific unit (later aggregated per line).
  * @typedef {{
  *   unitId: string,
  *   lineId: string,
@@ -50,43 +64,6 @@ import {
  *   message: string,
  * }} UnitDiscount
  */
-
-/** Spend & save tiers keyed by presentment currency family */
-const SPEND_SAVE_PERCENT_TIERS = {
-  AUD: [
-    { minCents: 7500, pct: 20 },
-    { minCents: 15000, pct: 25 },
-    { minCents: 20000, pct: 30 },
-  ],
-  USD: [
-    { minCents: 5000, pct: 20 },
-    { minCents: 10000, pct: 25 },
-    { minCents: 15000, pct: 30 },
-  ],
-  GBP: [
-    { minCents: 4000, pct: 20 },
-    { minCents: 7500, pct: 25 },
-    { minCents: 10000, pct: 30 },
-  ],
-};
-
-const SPEND_SAVE_FIXED_TIERS = {
-  AUD: [
-    { minCents: 7500, offCents: 1500 },
-    { minCents: 15000, offCents: 4000 },
-    { minCents: 20000, offCents: 6000 },
-  ],
-  USD: [
-    { minCents: 5000, offCents: 1000 },
-    { minCents: 10000, offCents: 2500 },
-    { minCents: 15000, offCents: 4500 },
-  ],
-  GBP: [
-    { minCents: 4000, offCents: 1000 },
-    { minCents: 7500, offCents: 2000 },
-    { minCents: 10000, offCents: 3000 },
-  ],
-};
 
 /**
  * @param {RunInput} input
@@ -107,63 +84,81 @@ export function cartLinesDiscountsGenerateRun(input) {
   }
 
   const presentmentRate = parsePresentmentCurrencyRate(input.presentmentCurrencyRate);
-  const currencyCode = resolveCurrencyCode(input);
-  const hoodieBundlePriceCents = resolveHoodieBundlePriceCents(
+  const hoodieBundlePriceCents = resolveShopAmountToPresentmentCents(
     config.hoodieBundlePrice,
     presentmentRate,
   );
 
-  const units = expandUnits(input.cart.lines);
+  const units = expandUnits(input.cart.lines, config);
   if (!units.length) {
     return { operations: [] };
   }
 
+  // Always: hoodie bundles first on eligible hoodie units.
+  const bundleDiscounts = applyHoodieBundlesOnly(units, hoodieBundlePriceCents, config);
+  const bundledIds = new Set(bundleDiscounts.map((d) => d.unitId));
+  const remaining = units.filter((u) => !bundledIds.has(u.unitId));
+
   /** @type {UnitDiscount[]} */
-  let productUnitDiscounts = [];
+  let promoDiscounts = [];
   /** @type {{ amountCents: number, message: string } | null} */
   let orderDiscount = null;
 
-  switch (config.promoType) {
-    case 'none':
-      productUnitDiscounts = applyHoodieBundlesOnly(units, hoodieBundlePriceCents, config);
-      break;
+  const activeSlot = promoSlotForDay(config);
 
+  switch (config.promoOfTheDay) {
     case 'b2g1':
-      productUnitDiscounts = applyBestOfBundlesAndB2G1(units, hoodieBundlePriceCents, config);
+      promoDiscounts = applyBxGyPercent(
+        remaining,
+        (u) => u.inPromoQualify,
+        (u) => u.inPromoEligible,
+        2,
+        activeSlot.percent,
+        config.messages.b2g1,
+      );
       break;
 
     case 'b1g50':
-      productUnitDiscounts = applyBestOfBundlesAndB1G50(units, hoodieBundlePriceCents, config);
+      promoDiscounts = applyBxGyPercent(
+        remaining,
+        (u) => u.inPromoQualify,
+        (u) => u.inPromoEligible,
+        1,
+        activeSlot.percent,
+        config.messages.b1g50,
+      );
       break;
 
-    case 'hoodie_sweatpants_50':
-      productUnitDiscounts = applyBestOfBundlesAndHoodieSweatpants(
-        units,
-        hoodieBundlePriceCents,
-        config,
+    case 'b1hg50_sw':
+      promoDiscounts = applyBxGyPercent(
+        remaining,
+        (u) => u.inPromoQualify,
+        (u) => u.inPromoEligible,
+        1,
+        activeSlot.percent,
+        config.messages.b1hg50Sw,
       );
       break;
 
     case 'spend_save_percent':
     case 'spend_save_fixed': {
-      // Hoodie bundles first as product discounts; their discounted prices feed spend thresholds.
-      productUnitDiscounts = applyHoodieBundlesOnly(units, hoodieBundlePriceCents, config);
       if (hasOrder) {
         orderDiscount = computeSpendSaveOrderDiscount(
           units,
-          productUnitDiscounts,
-          config.promoType,
-          currencyCode,
+          bundleDiscounts,
           config,
+          presentmentRate,
         );
       }
       break;
     }
 
+    case 'none':
     default:
-      productUnitDiscounts = applyHoodieBundlesOnly(units, hoodieBundlePriceCents, config);
       break;
   }
+
+  const productUnitDiscounts = [...bundleDiscounts, ...promoDiscounts];
 
   /** @type {CartLinesDiscountsGenerateRunResult['operations']} */
   const operations = [];
@@ -203,7 +198,7 @@ export function cartLinesDiscountsGenerateRun(input) {
 }
 
 // ---------------------------------------------------------------------------
-// Config / money helpers
+// Config
 // ---------------------------------------------------------------------------
 
 /**
@@ -218,28 +213,96 @@ function parseConfig(jsonValue) {
   const raw = /** @type {Record<string, unknown>} */ (jsonValue);
 
   const hoodieCollectionIds = normalizeIdList(
-    raw.hoodieCollectionIds ?? raw.collectionIds ?? raw.collectionId,
+    raw.hoodieCollectionIds ?? raw.collectionId,
   );
-  // Bundle still requires a hoodie collection; other promos may run without it.
-  const sweatpantsCollectionIds = normalizeIdList(raw.sweatpantsCollectionIds);
+  // Note: top-level `collectionIds` is the input-variable union for inCollections — not the hoodie list.
 
-  const promoType = normalizePromoType(raw.promoType);
-  const hoodieBundlePrice = Number(raw.hoodieBundlePrice ?? raw.bundlePrice ?? 100);
+  const hoodieBundlePrice = Number(raw.hoodieBundlePrice ?? raw.bundlePrice ?? 0);
   if (!Number.isFinite(hoodieBundlePrice) || hoodieBundlePrice <= 0) {
     return null;
   }
 
   return {
     hoodieCollectionIds,
-    sweatpantsCollectionIds,
     hoodieBundlePrice,
-    promoType,
+    promoOfTheDay: normalizePromoOfTheDay(raw.promoOfTheDay ?? raw.promoType),
+    b2g1: parseCollectionPromoSlot(raw, 'b2g1', 100, {
+      qualify: ['b2g1QualifyCollectionIds'],
+      eligible: ['b2g1EligibleCollectionIds'],
+      percent: ['b2g1Percent'],
+    }),
+    b1g50: parseCollectionPromoSlot(raw, 'b1g50', 50, {
+      qualify: ['b1g50QualifyCollectionIds'],
+      eligible: ['b1g50EligibleCollectionIds'],
+      percent: ['b1g50Percent'],
+    }),
+    b1hg50Sw: parseCollectionPromoSlot(raw, 'b1hg50Sw', 50, {
+      qualify: [
+        'b1hg50SwQualifyCollectionIds',
+        'hoodieCollectionIds',
+      ],
+      eligible: [
+        'b1hg50SwEligibleCollectionIds',
+        'sweatpantsCollectionIds',
+      ],
+      percent: ['b1hg50SwPercent'],
+    }),
+    spendSavePercentTiers: parseSpendTiersCsv(
+      typeof raw.spendSavePercentCsv === 'string' ? raw.spendSavePercentCsv : '',
+      { discountIsPercent: true },
+    ),
+    spendSaveFixedTiers: parseSpendTiersCsv(
+      typeof raw.spendSaveFixedCsv === 'string' ? raw.spendSaveFixedCsv : '',
+      { discountIsPercent: false },
+    ),
     messages: parseMessages(raw),
   };
 }
 
 /**
- * Prefer nested `messages` object; fall back to legacy single-title fields.
+ * @param {Record<string, unknown>} raw
+ * @param {string} _slotName
+ * @param {number} defaultPercent
+ * @param {{ qualify: string[], eligible: string[], percent: string[] }} keys
+ * @returns {CollectionPromoSlot}
+ */
+function parseCollectionPromoSlot(raw, _slotName, defaultPercent, keys) {
+  const nested =
+    raw[_slotName] && typeof raw[_slotName] === 'object'
+      ? /** @type {Record<string, unknown>} */ (raw[_slotName])
+      : null;
+
+  const qualifyCollectionIds = normalizeIdList(
+    nested?.qualifyCollectionIds ?? firstDefined(raw, keys.qualify),
+  );
+  const eligibleCollectionIds = normalizeIdList(
+    nested?.eligibleCollectionIds ?? firstDefined(raw, keys.eligible),
+  );
+
+  const percentRaw = nested?.percent ?? firstDefined(raw, keys.percent) ?? defaultPercent;
+  const percent = Number(percentRaw);
+  return {
+    qualifyCollectionIds,
+    eligibleCollectionIds,
+    percent: Number.isFinite(percent) && percent > 0 ? Math.min(100, percent) : defaultPercent,
+  };
+}
+
+/**
+ * @param {Record<string, unknown>} raw
+ * @param {string[]} keys
+ * @returns {unknown}
+ */
+function firstDefined(raw, keys) {
+  for (const key of keys) {
+    if (raw[key] !== undefined && raw[key] !== null && raw[key] !== '') {
+      return raw[key];
+    }
+  }
+  return undefined;
+}
+
+/**
  * @param {Record<string, unknown>} raw
  * @returns {PromoMessages}
  */
@@ -255,16 +318,16 @@ function parseMessages(raw) {
   return {
     hoodieBundle: str(
       nested.hoodieBundle ?? raw.hoodieBundleTitle ?? raw.discountTitle,
-      'Hoodie Bundle 2 for $100',
+      'Hoodie Bundle',
     ),
     b2g1: str(nested.b2g1 ?? raw.discountTitle, 'Buy 2 Get 1 Free'),
     b1g50: str(nested.b1g50 ?? raw.discountTitle, 'Buy 1 Get 1 50% Off'),
-    hoodieSweatpants50: str(
-      nested.hoodieSweatpants50 ?? raw.discountTitle,
+    b1hg50Sw: str(
+      nested.b1hg50Sw ?? nested.hoodieSweatpants50 ?? raw.discountTitle,
       '50% off sweatpants with hoodie',
     ),
-    spendSavePercent: str(nested.spendSavePercent ?? raw.discountTitle, ''),
-    spendSaveFixed: str(nested.spendSaveFixed ?? raw.discountTitle, ''),
+    spendSavePercent: str(nested.spendSavePercent ?? raw.discountTitle, 'Spend & Save'),
+    spendSaveFixed: str(nested.spendSaveFixed ?? raw.discountTitle, 'Spend & Save'),
   };
 }
 
@@ -284,19 +347,51 @@ function normalizeIdList(value) {
 
 /**
  * @param {unknown} value
- * @returns {PromoType}
+ * @returns {PromoOfTheDay}
  */
-function normalizePromoType(value) {
+function normalizePromoOfTheDay(value) {
   const v = typeof value === 'string' ? value.trim().toLowerCase() : 'none';
-  const allowed = new Set([
-    'none',
-    'b2g1',
-    'spend_save_percent',
-    'spend_save_fixed',
-    'b1g50',
-    'hoodie_sweatpants_50',
-  ]);
-  return allowed.has(v) ? /** @type {PromoType} */ (v) : 'none';
+  const aliases = {
+    none: 'none',
+    b2g1: 'b2g1',
+    b1g50: 'b1g50',
+    b1hg50_sw: 'b1hg50_sw',
+    b1hg50sw: 'b1hg50_sw',
+    hoodie_sweatpants_50: 'b1hg50_sw',
+    spend_save_percent: 'spend_save_percent',
+    spend_save_fixed: 'spend_save_fixed',
+    'spend & save %': 'spend_save_percent',
+    'spend & save $': 'spend_save_fixed',
+  };
+  return /** @type {PromoOfTheDay} */ (aliases[v] ?? 'none');
+}
+
+/**
+ * Parse `75|20,150|25` (% ) or `75|1500,150|4000` ($ off in cents).
+ * Spend is shop-currency major units; % value is percent; fixed value is shop cents.
+ *
+ * @param {string} csv
+ * @param {{ discountIsPercent: boolean }} opts
+ * @returns {SpendTierRow[]}
+ */
+function parseSpendTiersCsv(csv, opts) {
+  if (!csv || typeof csv !== 'string') return [];
+
+  /** @type {SpendTierRow[]} */
+  const tiers = [];
+  for (const part of csv.split(',')) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const [spendRaw, discountRaw] = trimmed.split('|').map((s) => s.trim());
+    const minShopAmount = Number(spendRaw);
+    const value = Number(discountRaw);
+    if (!Number.isFinite(minShopAmount) || minShopAmount < 0) continue;
+    if (!Number.isFinite(value) || value <= 0) continue;
+    if (opts.discountIsPercent && value > 100) continue;
+    tiers.push({ minShopAmount, value });
+  }
+
+  return tiers.sort((a, b) => a.minShopAmount - b.minShopAmount);
 }
 
 /**
@@ -309,35 +404,13 @@ function parsePresentmentCurrencyRate(value) {
 }
 
 /**
- * Bundle price is configured in shop currency (single price). Convert with presentment rate.
+ * Shop-currency major units → presentment cents.
  * @param {number} shopAmount
  * @param {number} presentmentRate
  * @returns {number}
  */
-function resolveHoodieBundlePriceCents(shopAmount, presentmentRate) {
+function resolveShopAmountToPresentmentCents(shopAmount, presentmentRate) {
   return Math.round(shopAmount * 100 * presentmentRate);
-}
-
-/**
- * @param {RunInput} input
- * @returns {string}
- */
-function resolveCurrencyCode(input) {
-  const fromCost = input.cart?.cost?.subtotalAmount?.currencyCode;
-  if (typeof fromCost === 'string' && fromCost) {
-    return fromCost.toUpperCase();
-  }
-  for (const line of input.cart.lines) {
-    const code = line.cost?.amountPerQuantity?.currencyCode;
-    if (typeof code === 'string' && code) {
-      return code.toUpperCase();
-    }
-  }
-  const country = input.localization?.country?.isoCode;
-  if (country === 'AU') return 'AUD';
-  if (country === 'GB' || country === 'UK') return 'GBP';
-  if (country === 'US') return 'USD';
-  return 'AUD';
 }
 
 /**
@@ -350,16 +423,57 @@ function moneyToCents(value) {
   return Math.round(amount * 100);
 }
 
+/**
+ * Active BxGy slot for the selected Promo of the Day (empty for none / spend & save).
+ * @param {ParsedConfig} config
+ * @returns {CollectionPromoSlot}
+ */
+function promoSlotForDay(config) {
+  if (config.promoOfTheDay === 'b2g1') return config.b2g1;
+  if (config.promoOfTheDay === 'b1g50') return config.b1g50;
+  if (config.promoOfTheDay === 'b1hg50_sw') return config.b1hg50Sw;
+  return { qualifyCollectionIds: [], eligibleCollectionIds: [], percent: 0 };
+}
+
+/**
+ * @param {Array<{ collectionId?: string, isMember?: boolean }> | null | undefined} memberships
+ * @returns {Set<string>}
+ */
+function memberCollectionIdSet(memberships) {
+  /** @type {Set<string>} */
+  const set = new Set();
+  if (!Array.isArray(memberships)) return set;
+  for (const row of memberships) {
+    if (row?.isMember && typeof row.collectionId === 'string') {
+      set.add(row.collectionId);
+    }
+  }
+  return set;
+}
+
+/**
+ * @param {Set<string>} memberIds
+ * @param {string[]} collectionIds
+ * @returns {boolean}
+ */
+function isInAny(memberIds, collectionIds) {
+  for (const id of collectionIds) {
+    if (memberIds.has(id)) return true;
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
-// Unit expansion
+// Units
 // ---------------------------------------------------------------------------
 
 /**
- * Expand cart lines into individual units. Skip lines marked `_hoodie_bundle_exclude`.
  * @param {RunInput['cart']['lines']} lines
+ * @param {ParsedConfig} config
  * @returns {Unit[]}
  */
-function expandUnits(lines) {
+function expandUnits(lines, config) {
+  const slot = promoSlotForDay(config);
   /** @type {Unit[]} */
   const units = [];
   let seq = 0;
@@ -371,16 +485,17 @@ function expandUnits(lines) {
     const unitPriceCents = moneyToCents(line.cost.amountPerQuantity.amount);
     if (unitPriceCents == null || unitPriceCents <= 0) continue;
 
-    const isHoodie = Boolean(line.merchandise.product?.inHoodieCollection);
-    const isSweatpants = Boolean(line.merchandise.product?.inSweatpantsCollection);
+    const product = line.merchandise.product;
+    const memberIds = memberCollectionIdSet(product?.collectionMemberships);
 
     for (let i = 0; i < line.quantity; i += 1) {
       units.push({
-        unitId: `${line.id}#${seq++}`,
+        unitId: `${ line.id }#${ seq++ }`,
         lineId: line.id,
         unitPriceCents,
-        isHoodie,
-        isSweatpants,
+        isHoodie: isInAny(memberIds, config.hoodieCollectionIds),
+        inPromoQualify: isInAny(memberIds, slot.qualifyCollectionIds),
+        inPromoEligible: isInAny(memberIds, slot.eligibleCollectionIds),
       });
     }
   }
@@ -389,11 +504,10 @@ function expandUnits(lines) {
 }
 
 // ---------------------------------------------------------------------------
-// Hoodie bundles (cheapest-first pairing)
+// Hoodie bundles — cheapest pairs first, proportional attribution
 // ---------------------------------------------------------------------------
 
 /**
- * Pair cheapest hoodies first into groups of 2 at bundle price.
  * @param {Unit[]} units
  * @param {number} bundlePriceCents
  * @param {ParsedConfig} config
@@ -453,318 +567,58 @@ function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
 }
 
 // ---------------------------------------------------------------------------
-// B2G1 Free — compete with hoodie bundles for best customer value
+// BxGy percent (B2G1 / B1G50 / B1HG50Sw)
 // ---------------------------------------------------------------------------
 
 /**
- * Compare pure hoodie-bundle plan vs plans that leave some/all hoodies for B2G1.
- * Greedy: sort all units cheapest-first for free slots; paid slots are the rest.
- * Hoodie pairs and B2G1 triples are mutually exclusive per unit.
- *
- * Strategy:
- * 1. Compute discount if we maximise hoodie pairs first, then B2G1 on remaining.
- * 2. Compute discount if we maximise B2G1 first (cheapest free), then hoodie pairs on remaining hoodies.
- * 3. Pick the plan with higher total discount cents.
+ * Qualifying paid units unlock eligible units for `percent` off.
+ * Cheapest eligible not yet grouped receives the discount; then consume
+ * `paidCount` cheapest remaining qualifiers (excluding the discounted unit).
+ * Repeats while another full group can form.
  *
  * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
+ * @param {(u: Unit) => boolean} isQualify
+ * @param {(u: Unit) => boolean} isEligible
+ * @param {number} paidCount
+ * @param {number} percent
+ * @param {string} message
  * @returns {UnitDiscount[]}
  */
-function applyBestOfBundlesAndB2G1(units, bundlePriceCents, config) {
-  const planBundlesFirst = planBundlesThenB2G1(units, bundlePriceCents, config);
-  const planB2G1First = planB2G1ThenBundles(units, bundlePriceCents, config);
+function applyBxGyPercent(units, isQualify, isEligible, paidCount, percent, message) {
+  if (paidCount < 1 || percent <= 0) return [];
 
-  const total = (plan) => plan.reduce((s, d) => s + d.discountCents, 0);
-  return total(planB2G1First) > total(planBundlesFirst) ? planB2G1First : planBundlesFirst;
-}
-
-/**
- * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function planBundlesThenB2G1(units, bundlePriceCents, config) {
-  const bundleDiscounts = applyHoodieBundlesOnly(units, bundlePriceCents, config);
-  const bundledIds = new Set(bundleDiscounts.map((d) => d.unitId));
-  const remaining = units.filter((u) => !bundledIds.has(u.unitId));
-  const b2g1 = applyB2G1(remaining, config);
-  return [...bundleDiscounts, ...b2g1];
-}
-
-/**
- * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function planB2G1ThenBundles(units, bundlePriceCents, config) {
-  const b2g1 = applyB2G1(units, config);
-  const usedIds = new Set(b2g1.map((d) => d.unitId));
-  // B2G1 also "uses" the two paid units in each group — track them via grouping logic below.
-  // applyB2G1 only returns discounts for free units; we need the paid units marked used too.
-  const freeIds = new Set(b2g1.map((d) => d.unitId));
-  const sorted = units.slice().sort((a, b) => a.unitPriceCents - b.unitPriceCents);
   /** @type {Set<string>} */
-  const allUsed = new Set(freeIds);
-  // Reconstruct groups: cheapest free with next two paid (by sort order after removing frees).
-  // Simpler: re-run grouping and mark all three.
-  markB2G1UsedUnits(sorted, allUsed);
-
-  const remainingHoodies = units.filter(
-    (u) => u.isHoodie && !allUsed.has(u.unitId),
-  );
-  const bundleDiscounts = applyHoodieBundlesOnly(remainingHoodies, bundlePriceCents, config);
-  return [...bundleDiscounts, ...b2g1];
-}
-
-/**
- * Buy 2 Get 1 Free: groups of 3, cheapest unit in each group is free (100% off).
- * Multiple groups. Units sorted cheapest-first; free slots take cheapest available.
- *
- * Classic "cheapest free": sort ascending, for every 3 units the first of each
- * group of 3 (cheapest) is free when we walk groups of [free, paid, paid] from
- * the sorted list... Actually standard is: sort descending by price for paid,
- * free the cheapest overall per group. Spec: "The cheapest paid product that is
- * not already in a group should receive the discount" — meaning the free item
- * is the cheapest not-yet-grouped.
- *
- * Implementation: sort all units by price ascending. While >= 3 remain, take
- * the cheapest as free and the next two (any) as paid group members.
- *
- * @param {Unit[]} units
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function applyB2G1(units, config) {
-  const sorted = units.slice().sort((a, b) => a.unitPriceCents - b.unitPriceCents);
-  /** @type {UnitDiscount[]} */
-  const discounts = [];
-  const message = config.messages.b2g1;
-
-  let i = 0;
-  while (i + 2 < sorted.length) {
-    const freeUnit = sorted[i];
-    // paid: sorted[i+1], sorted[i+2]
-    discounts.push({
-      unitId: freeUnit.unitId,
-      lineId: freeUnit.lineId,
-      discountCents: freeUnit.unitPriceCents,
-      message,
-    });
-    i += 3;
-  }
-
-  return discounts;
-}
-
-/**
- * Mark all units consumed by B2G1 groups (free + 2 paid).
- * @param {Unit[]} sortedAsc
- * @param {Set<string>} used
- */
-function markB2G1UsedUnits(sortedAsc, used) {
-  let i = 0;
-  while (i + 2 < sortedAsc.length) {
-    used.add(sortedAsc[i].unitId);
-    used.add(sortedAsc[i + 1].unitId);
-    used.add(sortedAsc[i + 2].unitId);
-    i += 3;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// B1G1 50% off — compete with hoodie bundles
-// ---------------------------------------------------------------------------
-
-/**
- * Any paid product can qualify another for 50% off (cheapest ungrouped receives 50%).
- * Multiple pairs. Hoodie bundles compete — pick higher total discount.
- *
- * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function applyBestOfBundlesAndB1G50(units, bundlePriceCents, config) {
-  const planBundlesFirst = planBundlesThenB1G50(units, bundlePriceCents, config);
-  const planB1G50First = planB1G50ThenBundles(units, bundlePriceCents, config);
-
-  const total = (plan) => plan.reduce((s, d) => s + d.discountCents, 0);
-  return total(planB1G50First) > total(planBundlesFirst) ? planB1G50First : planBundlesFirst;
-}
-
-/**
- * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function planBundlesThenB1G50(units, bundlePriceCents, config) {
-  const bundleDiscounts = applyHoodieBundlesOnly(units, bundlePriceCents, config);
-  const bundledIds = new Set(bundleDiscounts.map((d) => d.unitId));
-  const remaining = units.filter((u) => !bundledIds.has(u.unitId));
-  const b1g50 = applyB1G50(remaining, config);
-  return [...bundleDiscounts, ...b1g50];
-}
-
-/**
- * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function planB1G50ThenBundles(units, bundlePriceCents, config) {
-  const b1g50 = applyB1G50(units, config);
   const used = new Set();
-  markB1G50UsedUnits(units, used);
-  const remainingHoodies = units.filter((u) => u.isHoodie && !used.has(u.unitId));
-  const bundleDiscounts = applyHoodieBundlesOnly(remainingHoodies, bundlePriceCents, config);
-  return [...bundleDiscounts, ...b1g50];
-}
-
-/**
- * Pair units: each pair has one full-price qualifier and one 50% off (cheapest available).
- * Sort ascending; free/half slots are cheapest: for every 2 units, cheaper gets 50%.
- *
- * @param {Unit[]} units
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function applyB1G50(units, config) {
-  const sorted = units.slice().sort((a, b) => a.unitPriceCents - b.unitPriceCents);
   /** @type {UnitDiscount[]} */
   const discounts = [];
-  const message = config.messages.b1g50;
 
-  let i = 0;
-  while (i + 1 < sorted.length) {
-    const halfUnit = sorted[i]; // cheapest gets 50%
-    // qualifier = sorted[i+1]
-    const halfOff = Math.floor(halfUnit.unitPriceCents / 2);
-    if (halfOff > 0) {
+  while (true) {
+    const eligible = units
+      .filter((u) => isEligible(u) && !used.has(u.unitId))
+      .slice()
+      .sort((a, b) => a.unitPriceCents - b.unitPriceCents);
+
+    if (!eligible.length) break;
+
+    const discounted = eligible[0];
+
+    const qualifiers = units
+      .filter((u) => isQualify(u) && !used.has(u.unitId) && u.unitId !== discounted.unitId)
+      .slice()
+      .sort((a, b) => a.unitPriceCents - b.unitPriceCents);
+
+    if (qualifiers.length < paidCount) break;
+
+    const paid = qualifiers.slice(0, paidCount);
+    used.add(discounted.unitId);
+    for (const p of paid) used.add(p.unitId);
+
+    const discountCents = Math.floor((discounted.unitPriceCents * percent) / 100);
+    if (discountCents > 0) {
       discounts.push({
-        unitId: halfUnit.unitId,
-        lineId: halfUnit.lineId,
-        discountCents: halfOff,
-        message,
-      });
-    }
-    i += 2;
-  }
-
-  return discounts;
-}
-
-/**
- * @param {Unit[]} units
- * @param {Set<string>} used
- */
-function markB1G50UsedUnits(units, used) {
-  const sorted = units.slice().sort((a, b) => a.unitPriceCents - b.unitPriceCents);
-  let i = 0;
-  while (i + 1 < sorted.length) {
-    used.add(sorted[i].unitId);
-    used.add(sorted[i + 1].unitId);
-    i += 2;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Buy 1 full-price hoodie → 50% off cheapest sweatpants
-// ---------------------------------------------------------------------------
-
-/**
- * Full-price (non-bundled) hoodie qualifies cheapest ungrouped sweatpants for 50% off.
- * Compete with pure hoodie bundles: if bundling two hoodies is better than using
- * them as qualifiers for sweatpants, prefer bundles.
- *
- * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function applyBestOfBundlesAndHoodieSweatpants(units, bundlePriceCents, config) {
-  const planBundlesFirst = planBundlesThenHoodieSweatpants(units, bundlePriceCents, config);
-  const planSweatFirst = planHoodieSweatpantsThenBundles(units, bundlePriceCents, config);
-
-  const total = (plan) => plan.reduce((s, d) => s + d.discountCents, 0);
-  return total(planSweatFirst) > total(planBundlesFirst) ? planSweatFirst : planBundlesFirst;
-}
-
-/**
- * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function planBundlesThenHoodieSweatpants(units, bundlePriceCents, config) {
-  const bundleDiscounts = applyHoodieBundlesOnly(units, bundlePriceCents, config);
-  const bundledIds = new Set(bundleDiscounts.map((d) => d.unitId));
-  const remaining = units.filter((u) => !bundledIds.has(u.unitId));
-  const hs = applyHoodieSweatpants50(remaining, config);
-  return [...bundleDiscounts, ...hs];
-}
-
-/**
- * Prefer maximising hoodie→sweatpants pairs, then bundle leftover hoodies.
- * @param {Unit[]} units
- * @param {number} bundlePriceCents
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function planHoodieSweatpantsThenBundles(units, bundlePriceCents, config) {
-  const hs = applyHoodieSweatpants50(units, config);
-  const usedHoodieIds = new Set();
-  const usedSweatIds = new Set(hs.map((d) => d.unitId));
-
-  // Reconstruct which hoodies were used as qualifiers (one per sweatpants discount).
-  const hoodies = units
-    .filter((u) => u.isHoodie)
-    .slice()
-    .sort((a, b) => a.unitPriceCents - b.unitPriceCents);
-  const sweatCount = hs.length;
-  for (let i = 0; i < sweatCount && i < hoodies.length; i += 1) {
-    usedHoodieIds.add(hoodies[i].unitId);
-  }
-
-  const remainingHoodies = units.filter(
-    (u) => u.isHoodie && !usedHoodieIds.has(u.unitId) && !usedSweatIds.has(u.unitId),
-  );
-  const bundleDiscounts = applyHoodieBundlesOnly(remainingHoodies, bundlePriceCents, config);
-  return [...bundleDiscounts, ...hs];
-}
-
-/**
- * Each full-price hoodie can qualify the cheapest remaining sweatpants for 50% off.
- * @param {Unit[]} units
- * @param {ParsedConfig} config
- * @returns {UnitDiscount[]}
- */
-function applyHoodieSweatpants50(units, config) {
-  const hoodies = units
-    .filter((u) => u.isHoodie)
-    .slice()
-    .sort((a, b) => a.unitPriceCents - b.unitPriceCents);
-  const sweatpants = units
-    .filter((u) => u.isSweatpants)
-    .slice()
-    .sort((a, b) => a.unitPriceCents - b.unitPriceCents);
-
-  /** @type {UnitDiscount[]} */
-  const discounts = [];
-  const message = config.messages.hoodieSweatpants50;
-
-  const pairs = Math.min(hoodies.length, sweatpants.length);
-  for (let i = 0; i < pairs; i += 1) {
-    const sweat = sweatpants[i];
-    const halfOff = Math.floor(sweat.unitPriceCents / 2);
-    if (halfOff > 0) {
-      discounts.push({
-        unitId: sweat.unitId,
-        lineId: sweat.lineId,
-        discountCents: halfOff,
+        unitId: discounted.unitId,
+        lineId: discounted.lineId,
+        discountCents,
         message,
       });
     }
@@ -778,23 +632,13 @@ function applyHoodieSweatpants50(units, config) {
 // ---------------------------------------------------------------------------
 
 /**
- * Hoodie bundles already applied as product discounts. Compute cart spend using
- * discounted prices for bundled units, full prices otherwise. Apply tier.
- *
  * @param {Unit[]} units
  * @param {UnitDiscount[]} productDiscounts
- * @param {'spend_save_percent' | 'spend_save_fixed'} promoType
- * @param {string} currencyCode
  * @param {ParsedConfig} config
+ * @param {number} presentmentRate
  * @returns {{ amountCents: number, message: string } | null}
  */
-function computeSpendSaveOrderDiscount(
-  units,
-  productDiscounts,
-  promoType,
-  currencyCode,
-  config,
-) {
+function computeSpendSaveOrderDiscount(units, productDiscounts, config, presentmentRate) {
   const discountByUnit = new Map();
   for (const d of productDiscounts) {
     discountByUnit.set(d.unitId, (discountByUnit.get(d.unitId) || 0) + d.discountCents);
@@ -806,42 +650,38 @@ function computeSpendSaveOrderDiscount(
     spendCents += Math.max(0, u.unitPriceCents - disc);
   }
 
-  const family = currencyFamily(currencyCode);
-  if (promoType === 'spend_save_percent') {
-    const tiers = SPEND_SAVE_PERCENT_TIERS[family] || SPEND_SAVE_PERCENT_TIERS.AUD;
+  if (config.promoOfTheDay === 'spend_save_percent') {
+    const tiers = config.spendSavePercentTiers;
+    if (!tiers.length) return null;
+
     let bestPct = 0;
     for (const tier of tiers) {
-      if (spendCents >= tier.minCents) bestPct = tier.pct;
+      const minCents = resolveShopAmountToPresentmentCents(tier.minShopAmount, presentmentRate);
+      if (spendCents >= minCents) bestPct = tier.value;
     }
     if (bestPct <= 0) return null;
-    const amountCents = Math.floor((spendCents * bestPct) / 100);
     return {
-      amountCents,
-      message: config.messages.spendSavePercent || `${bestPct}% off`,
+      amountCents: Math.floor((spendCents * bestPct) / 100),
+      message: config.messages.spendSavePercent || `${ bestPct }% off`,
     };
   }
 
-  const tiers = SPEND_SAVE_FIXED_TIERS[family] || SPEND_SAVE_FIXED_TIERS.AUD;
-  let bestOff = 0;
-  for (const tier of tiers) {
-    if (spendCents >= tier.minCents) bestOff = tier.offCents;
-  }
-  if (bestOff <= 0) return null;
-  return {
-    amountCents: bestOff,
-    message: config.messages.spendSaveFixed || `$${(bestOff / 100).toFixed(0)} off`,
-  };
-}
+  const tiers = config.spendSaveFixedTiers;
+  if (!tiers.length) return null;
 
-/**
- * @param {string} code
- * @returns {'AUD' | 'USD' | 'GBP'}
- */
-function currencyFamily(code) {
-  const c = (code || '').toUpperCase();
-  if (c === 'USD' || c === 'CAD' || c === 'NZD') return 'USD';
-  if (c === 'GBP' || c === 'EUR') return 'GBP';
-  return 'AUD';
+  let bestOffPresentmentCents = 0;
+  for (const tier of tiers) {
+    const minCents = resolveShopAmountToPresentmentCents(tier.minShopAmount, presentmentRate);
+    if (spendCents >= minCents) {
+      // tier.value is shop-currency cents
+      bestOffPresentmentCents = Math.round(tier.value * presentmentRate);
+    }
+  }
+  if (bestOffPresentmentCents <= 0) return null;
+  return {
+    amountCents: bestOffPresentmentCents,
+    message: config.messages.spendSaveFixed || 'Spend & Save',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -849,7 +689,6 @@ function currencyFamily(code) {
 // ---------------------------------------------------------------------------
 
 /**
- * One candidate per (lineId, message) with summed fixed amount and quantity.
  * @param {UnitDiscount[]} unitDiscounts
  * @returns {Array<{
  *   message?: string,
@@ -863,7 +702,7 @@ function aggregateProductCandidates(unitDiscounts) {
 
   for (const d of unitDiscounts) {
     if (d.discountCents <= 0) continue;
-    const key = `${d.lineId}::${d.message}`;
+    const key = `${ d.lineId }::${ d.message }`;
     const bucket = buckets.get(key) ?? {
       lineId: d.lineId,
       message: d.message,

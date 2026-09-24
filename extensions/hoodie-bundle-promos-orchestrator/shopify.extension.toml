@@ -24,3 +24,7 @@ description = "t:description"
 [extensions.input.variables]
 namespace = "$app"
 key = "function-configuration"
+
+[extensions.ui]
+handle = "hoodie-bundle-promos-orchestrator-settings"
+enable_create = true

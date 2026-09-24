@@ -1,7 +1,4 @@
-query CartInput(
-  $hoodieCollectionIds: [ID!]
-  $sweatpantsCollectionIds: [ID!]
-) {
+query CartInput($collectionIds: [ID!]) {
   cart {
     lines {
       id
@@ -14,9 +11,6 @@ query CartInput(
           amount
           currencyCode
         }
-        subtotalAmount {
-          amount
-        }
       }
       merchandise {
         __typename
@@ -24,8 +18,10 @@ query CartInput(
           id
           product {
             id
-            inHoodieCollection: inAnyCollection(ids: $hoodieCollectionIds)
-            inSweatpantsCollection: inAnyCollection(ids: $sweatpantsCollectionIds)
+            collectionMemberships: inCollections(ids: $collectionIds) {
+              collectionId
+              isMember
+            }
           }
         }
       }
@@ -35,16 +31,6 @@ query CartInput(
         amount
         currencyCode
       }
-    }
-  }
-
-  localization {
-    country {
-      isoCode
-    }
-    market {
-      id
-      handle
     }
   }
   presentmentCurrencyRate
