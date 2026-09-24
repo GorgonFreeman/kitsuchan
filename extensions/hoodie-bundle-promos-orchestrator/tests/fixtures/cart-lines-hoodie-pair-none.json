@@ -1,0 +1,159 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "presentmentCurrencyRate": "1",
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/1",
+            "quantity": 1,
+            "excludeAttribute": null,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "70",
+                "currencyCode": "AUD"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/1",
+              "product": {
+                "id": "gid://shopify/Product/1",
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": true
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/2",
+            "quantity": 1,
+            "excludeAttribute": null,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "80",
+                "currencyCode": "AUD"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/2",
+              "product": {
+                "id": "gid://shopify/Product/2",
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": true
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "cost": {
+          "subtotalAmount": {
+            "amount": "0.0",
+            "currencyCode": "AUD"
+          }
+        }
+      },
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": [
+              "gid://shopify/Collection/HOODIE",
+              "gid://shopify/Collection/SWEAT"
+            ],
+            "hoodieCollectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "hoodieBundlePrice": 100,
+            "promoOfTheDay": "none",
+            "b2g1QualifyCollectionIds": [],
+            "b2g1EligibleCollectionIds": [],
+            "b2g1Percent": 100,
+            "b1g50QualifyCollectionIds": [],
+            "b1g50EligibleCollectionIds": [],
+            "b1g50Percent": 50,
+            "b1hg50SwQualifyCollectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "b1hg50SwEligibleCollectionIds": [
+              "gid://shopify/Collection/SWEAT"
+            ],
+            "b1hg50SwPercent": 50,
+            "spendSavePercentCsv": "75|20,150|25,200|30",
+            "spendSaveFixedCsv": "75|1500,150|4000,200|6000",
+            "messages": {
+              "hoodieBundle": "Hoodie Bundle",
+              "b2g1": "B2G1",
+              "b1g50": "B1G50",
+              "b1hg50Sw": "B1HG50Sw",
+              "spendSavePercent": "Spend & Save %",
+              "spendSaveFixed": "Spend & Save $"
+            }
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": [
+        "gid://shopify/Collection/HOODIE",
+        "gid://shopify/Collection/SWEAT"
+      ]
+    },
+    "output": {
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "message": "Hoodie Bundle",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/1",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "23.33",
+                    "appliesToEachItem": false
+                  }
+                }
+              },
+              {
+                "message": "Hoodie Bundle",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/2",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "26.67",
+                    "appliesToEachItem": false
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "ALL"
+          }
+        }
+      ]
+    }
+  }
+}
