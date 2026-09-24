@@ -573,10 +573,12 @@ function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
 // ---------------------------------------------------------------------------
 
 /**
- * Qualifying paid units unlock eligible units for `percent` off.
- * Cheapest eligible not yet grouped receives the discount; then consume
- * `paidCount` cheapest remaining qualifiers (excluding the discounted unit).
- * Repeats while another full group can form.
+ * Midway grouping: count how many full groups fit, then assign discount slots
+ * from cheapest eligible upwards. Paid qualifiers are the next-cheapest remaining
+ * qualify units — the most expensive units can sit outside any group.
+ *
+ * Example B2G1 with 7 units: floor(7/3)=2 free → 2 cheapest discounted;
+ * next 4 are paid; 1 dearest leftover is not in a group.
  *
  * @param {Unit[]} units
  * @param {(u: Unit) => boolean} isQualify
@@ -589,37 +591,37 @@ function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
 function applyBxGyPercent(units, isQualify, isEligible, paidCount, percent, message) {
   if (paidCount < 1 || percent <= 0) return [];
 
-  /** @type {Set<string>} */
-  const used = new Set();
+  const byPriceAsc = (a, b) => a.unitPriceCents - b.unitPriceCents;
+
+  const eligibleSorted = units.filter(isEligible).slice().sort(byPriceAsc);
+  const qualifySorted = units.filter(isQualify).slice().sort(byPriceAsc);
+
+  if (!eligibleSorted.length || qualifySorted.length < paidCount) return [];
+
+  const poolSize = new Set(
+    [...eligibleSorted, ...qualifySorted].map((u) => u.unitId),
+  ).size;
+  const groupSize = paidCount + 1;
+  const maxByPool = Math.floor(poolSize / groupSize);
+
+  let groupCount = 0;
+  for (let k = 1; k <= Math.min(eligibleSorted.length, maxByPool); k += 1) {
+    const freeIds = new Set(eligibleSorted.slice(0, k).map((u) => u.unitId));
+    const paidAvailable = qualifySorted.filter((u) => !freeIds.has(u.unitId)).length;
+    if (paidAvailable < k * paidCount) break;
+    groupCount = k;
+  }
+
+  if (groupCount <= 0) return [];
+
   /** @type {UnitDiscount[]} */
   const discounts = [];
-
-  while (true) {
-    const eligible = units
-      .filter((u) => isEligible(u) && !used.has(u.unitId))
-      .slice()
-      .sort((a, b) => a.unitPriceCents - b.unitPriceCents);
-
-    if (!eligible.length) break;
-
-    const discounted = eligible[0];
-
-    const qualifiers = units
-      .filter((u) => isQualify(u) && !used.has(u.unitId) && u.unitId !== discounted.unitId)
-      .slice()
-      .sort((a, b) => a.unitPriceCents - b.unitPriceCents);
-
-    if (qualifiers.length < paidCount) break;
-
-    const paid = qualifiers.slice(0, paidCount);
-    used.add(discounted.unitId);
-    for (const p of paid) used.add(p.unitId);
-
-    const discountCents = Math.floor((discounted.unitPriceCents * percent) / 100);
+  for (const unit of eligibleSorted.slice(0, groupCount)) {
+    const discountCents = Math.floor((unit.unitPriceCents * percent) / 100);
     if (discountCents > 0) {
       discounts.push({
-        unitId: discounted.unitId,
-        lineId: discounted.lineId,
+        unitId: unit.unitId,
+        lineId: unit.lineId,
         discountCents,
         message,
       });

@@ -7,9 +7,9 @@ One discount function that always runs **Hoodie Bundle** pairs first, then appli
 | Value | Behaviour |
 |-------|-----------|
 | `none` | Hoodie pairs only |
-| `b2g1` | 2 qualifying paid units unlock 1 eligible unit at configured % (cheapest eligible first, multi-use) |
-| `b1g50` | 1 qualifying paid unit unlocks 1 eligible unit at configured % (cheapest eligible first, multi-use) |
-| `b1hg50_sw` | Same slot shape as B1G50 — typically hoodies qualify sweatpants |
+| `b2g1` | Groups of 3: `floor(n/3)` cheapest eligible get % off; next units are paid; dearest leftovers may sit outside groups |
+| `b1g50` | Groups of 2: same midway rule with 1 paid + 1 discounted |
+| `b1hg50_sw` | Same as B1G50 with separate qualify/eligible collections (typically hoodies → sweatpants) |
 | `spend_save_percent` | After hoodie pairs, order % off from CSV tiers (discounted hoodie prices count toward spend) |
 | `spend_save_fixed` | Same with fixed $ off (CSV discount values are **cents**) |
 
