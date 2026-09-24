@@ -457,6 +457,8 @@ function memberCollectionIdSet(memberships) {
  * @returns {boolean}
  */
 function isInAny(memberIds, collectionIds) {
+  // Empty list = unrestricted (applies to every unit).
+  if (!collectionIds.length) return true;
   for (const id of collectionIds) {
     if (memberIds.has(id)) return true;
   }

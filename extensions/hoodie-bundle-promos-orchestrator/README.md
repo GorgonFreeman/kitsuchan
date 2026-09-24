@@ -56,7 +56,7 @@ JS branches on `promoOfTheDay`. The input query is static (Shopify cannot swap G
 }
 ```
 
-`collectionIds` must be the **deduped union** of every collection ID referenced by hoodie + all three promo slots. It binds to `$collectionIds` for `inCollections`.
+`collectionIds` must be the **deduped union** of every collection ID referenced by hoodie + all three promo slots. It binds to `$collectionIds` for `inCollections`. Empty qualify/eligible lists mean **all products** (unrestricted).
 
 ### Inputs by promo
 
