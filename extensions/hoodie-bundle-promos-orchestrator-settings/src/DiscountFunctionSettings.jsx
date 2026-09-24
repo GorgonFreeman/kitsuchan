@@ -427,10 +427,10 @@ function useExtensionData() {
     }
 
     if (promoOfTheDay === 'b2g1') {
-      assertSlot(slots.b2g1, 'B2G1');
+      assertPercent(slots.b2g1, 'B2G1');
     }
     if (promoOfTheDay === 'b1g50') {
-      assertSlot(slots.b1g50, 'B1G50');
+      assertPercent(slots.b1g50, 'B1G50');
     }
     if (promoOfTheDay === 'b1hg50_sw') {
       assertSlot(slots.b1hg50Sw, 'B1HG50Sw');
@@ -597,13 +597,17 @@ function uniqueIds(ids) {
   return [...new Set(ids.filter(Boolean))];
 }
 
-function assertSlot(slot, label) {
-  if (!slot.qualify?.id) throw new Error(`${ label }: qualifying collection is required`);
-  if (!slot.eligible?.id) throw new Error(`${ label }: discount-eligible collection is required`);
+function assertPercent(slot, label) {
   const percent = Number(slot.percent);
   if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
     throw new Error(`${ label }: percent must be between 1 and 100`);
   }
+}
+
+function assertSlot(slot, label) {
+  if (!slot.qualify?.id) throw new Error(`${ label }: qualifying collection is required`);
+  if (!slot.eligible?.id) throw new Error(`${ label }: discount-eligible collection is required`);
+  assertPercent(slot, label);
 }
 
 function idsOrEmpty(collection) {
