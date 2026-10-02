@@ -11,7 +11,6 @@ import {
   getPairs,
   getPostPairsSubtotal,
   moneyToCents,
-  pairedUnitIdSet,
   parsePresentmentCurrencyRate,
   resolveBundlePriceCents,
 } from '../../collection-pair-discount/src/collectionPairing.js';
@@ -88,7 +87,6 @@ export function cartLinesDiscountsGenerateRun(input) {
 
   const bundleUnits = units.filter((unit) => unit.inBundleCollection && !unit.excluded);
   const pairs = getPairs(bundleUnits, config.itemCount);
-  const pairedUnitIds = pairedUnitIdSet(pairs);
   const artificialSpendCents = getPostPairsSubtotal(units, pairs, bundlePriceCents);
 
   const percent = pickBestPercent(
@@ -100,12 +98,13 @@ export function cartLinesDiscountsGenerateRun(input) {
     return { operations: [] };
   }
 
+  // Apply to all eligible units, including hoodie-bundle pairs. Shopify combination
+  // rules pick the better of S&S % vs hoodie bundle when they compete.
   /** @type {Map<string, number>} */
   const lineQuantities = new Map();
   for (const unit of units) {
     if (unit.excluded) continue;
     if (!unit.inEligiblePool) continue;
-    if (pairedUnitIds.has(unit.unitId)) continue;
 
     lineQuantities.set(unit.lineId, (lineQuantities.get(unit.lineId) || 0) + 1);
   }

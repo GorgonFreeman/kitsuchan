@@ -7,11 +7,11 @@
         "lines": [
           {
             "id": "gid://shopify/CartLine/hoodies",
-            "quantity": 3,
+            "quantity": 2,
             "excludeAttribute": null,
             "cost": {
               "amountPerQuantity": {
-                "amount": "80.00",
+                "amount": "55.00",
                 "currencyCode": "AUD"
               }
             },
@@ -21,6 +21,10 @@
                 "collectionMemberships": [
                   {
                     "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": true
+                  },
+                  {
+                    "collectionId": "gid://shopify/Collection/SALE",
                     "isMember": true
                   }
                 ]
@@ -50,14 +54,17 @@
         "metafield": {
           "jsonValue": {
             "collectionIds": [
-              "gid://shopify/Collection/HOODIE"
+              "gid://shopify/Collection/HOODIE",
+              "gid://shopify/Collection/SALE"
             ],
             "bundleCollectionIds": [
               "gid://shopify/Collection/HOODIE"
             ],
-            "eligibleCollectionIds": [],
+            "eligibleCollectionIds": [
+              "gid://shopify/Collection/SALE"
+            ],
             "itemCount": 2,
-            "discountTitle": "Spend & Save",
+            "discountTitle": "Spend & Save [discountAmount]%",
             "pricingMode": "single",
             "shopCurrencyCode": "AUD",
             "bundlePrice": "100.00",
@@ -68,7 +75,8 @@
     },
     "inputQueryVariables": {
       "collectionIds": [
-        "gid://shopify/Collection/HOODIE"
+        "gid://shopify/Collection/HOODIE",
+        "gid://shopify/Collection/SALE"
       ]
     },
     "output": {
@@ -77,18 +85,18 @@
           "productDiscountsAdd": {
             "candidates": [
               {
-                "message": "Spend & Save",
+                "message": "Spend & Save 15%",
                 "targets": [
                   {
                     "cartLine": {
                       "id": "gid://shopify/CartLine/hoodies",
-                      "quantity": 3
+                      "quantity": 2
                     }
                   }
                 ],
                 "value": {
                   "percentage": {
-                    "value": 20
+                    "value": 15
                   }
                 }
               }
