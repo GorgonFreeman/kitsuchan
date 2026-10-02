@@ -1,0 +1,54 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": []
+      },
+      "localization": {
+        "market": {
+          "id": "gid://shopify/Market/1"
+        }
+      },
+      "presentmentCurrencyRate": "1",
+      "shop": {
+        "metafield": {
+          "jsonValue": {
+            "base": "AUD",
+            "AUD": 1
+          }
+        }
+      },
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "bundleCollectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "qualifyCollectionIds": [],
+            "eligibleCollectionIds": [],
+            "itemCount": 2,
+            "paidCount": 2,
+            "percent": 100,
+            "discountTitle": "B2G1"
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": [
+        "gid://shopify/Collection/HOODIE"
+      ]
+    },
+    "output": {
+      "operations": []
+    }
+  }
+}

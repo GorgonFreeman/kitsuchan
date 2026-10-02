@@ -1,0 +1,139 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/1",
+            "quantity": 1,
+            "excludeAttribute": null,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "70",
+                "currencyCode": "AUD"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": true
+                  },
+                  {
+                    "collectionId": "gid://shopify/Collection/SWEAT",
+                    "isMember": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/2",
+            "quantity": 1,
+            "excludeAttribute": null,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "80",
+                "currencyCode": "AUD"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": true
+                  },
+                  {
+                    "collectionId": "gid://shopify/Collection/SWEAT",
+                    "isMember": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/3",
+            "quantity": 1,
+            "excludeAttribute": null,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "60",
+                "currencyCode": "AUD"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": false
+                  },
+                  {
+                    "collectionId": "gid://shopify/Collection/SWEAT",
+                    "isMember": true
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "localization": {
+        "market": {
+          "id": "gid://shopify/Market/1"
+        }
+      },
+      "presentmentCurrencyRate": "1",
+      "shop": {
+        "metafield": {
+          "jsonValue": {
+            "base": "AUD",
+            "AUD": 1
+          }
+        }
+      },
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": [
+              "gid://shopify/Collection/HOODIE",
+              "gid://shopify/Collection/SWEAT"
+            ],
+            "bundleCollectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "qualifyCollectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "eligibleCollectionIds": [
+              "gid://shopify/Collection/SWEAT"
+            ],
+            "itemCount": 2,
+            "paidCount": 1,
+            "percent": 50,
+            "discountTitle": "B1HG50Sw"
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": [
+        "gid://shopify/Collection/HOODIE",
+        "gid://shopify/Collection/SWEAT"
+      ]
+    },
+    "output": {
+      "operations": []
+    }
+  }
+}
