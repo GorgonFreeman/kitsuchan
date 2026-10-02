@@ -1,0 +1,47 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/paid",
+            "quantity": 2,
+            "giftAttribute": null,
+            "cost": {
+              "amountPerQuantity": { "amount": "50.00" },
+              "subtotalAmount": { "amount": "100.00" }
+            },
+            "merchandise": { "__typename": "ProductVariant" }
+          },
+          {
+            "id": "gid://shopify/CartLine/gift",
+            "quantity": 1,
+            "giftAttribute": { "key": "_free_gift", "value": "1" },
+            "cost": {
+              "amountPerQuantity": { "amount": "79.00" },
+              "subtotalAmount": { "amount": "79.00" }
+            },
+            "merchandise": { "__typename": "ProductVariant" }
+          }
+        ]
+      },
+      "presentmentCurrencyRate": "1.0",
+      "discount": {
+        "discountClasses": ["PRODUCT"],
+        "metafield": {
+          "jsonValue": {
+            "lineProperty": "_free_gift",
+            "minSpend": "250.00",
+            "discountTitle": "Free gift",
+            "redemptions": "one"
+          }
+        }
+      }
+    },
+    "output": {
+      "operations": []
+    }
+  }
+}
