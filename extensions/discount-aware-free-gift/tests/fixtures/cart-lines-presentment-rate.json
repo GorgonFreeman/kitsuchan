@@ -27,7 +27,7 @@
           }
         ]
       },
-      "presentmentCurrencyRate": "1.2",
+      "presentmentCurrencyRate": "0.8",
       "discount": {
         "discountClasses": ["PRODUCT"],
         "metafield": {
@@ -41,7 +41,32 @@
       }
     },
     "output": {
-      "operations": []
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "message": "Free gift",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/gift",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "50.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "ALL"
+          }
+        }
+      ]
     }
   }
 }
