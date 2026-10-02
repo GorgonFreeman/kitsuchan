@@ -1,4 +1,4 @@
 {
-  "name": "discount-aware-free-gift",
-  "description": "discount-aware-free-gift"
+  "name": "Discount-aware free gift",
+  "description": "Fixed amount off a gift line when minimum spend is met. The gift price counts toward that minimum."
 }

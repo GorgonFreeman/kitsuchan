@@ -1,245 +1,94 @@
+import '@shopify/ui-extensions/preact';
+import { render } from 'preact';
+import { useState, useEffect, useMemo } from 'preact/hooks';
 
-import "@shopify/ui-extensions/preact";
-import {render} from "preact";
-import {useState, useEffect, useMemo} from "preact/hooks";
+const REDEMPTIONS_ONE = 'one';
+const REDEMPTIONS_MULTIPLE = 'multiple';
 
 export default async () => {
   render(<App />, document.body);
 };
 
-function AppliesToCollections({
-  onClickAdd,
-  onClickRemove,
-  value,
-  defaultValue,
-  i18n,
-  appliesTo,
-  onAppliesToChange,
-}) {
-  return (
-    <s-section>
-      <s-box display="none">
-        <s-text-field
-          value={value.map(({id}) => id).join(",")}
-          label=""
-          name="collectionsIds"
-          defaultValue={defaultValue.map(({id}) => id).join(",")}
-        />
-      </s-box>
-      <s-stack gap="base">
-        <s-stack direction="inline" alignItems="end" gap="base">
-          <s-select
-            label={i18n.translate("collections.appliesTo")}
-            name="appliesTo"
-            value={appliesTo}
-            onChange={event =>
-              onAppliesToChange(event.currentTarget.value)
-            }
-          >
-            <s-option value="all">
-              {i18n.translate("collections.allProducts")}
-            </s-option>
-            <s-option value="collections">
-              {i18n.translate("collections.collections")}
-            </s-option>
-          </s-select>
-
-          {appliesTo === "all" ? null : (
-            <s-box inlineSize="180px">
-              <s-button onClick={onClickAdd}>
-                {i18n.translate("collections.buttonLabel")}
-              </s-button>
-            </s-box>
-          )}
-        </s-stack>
-        <CollectionsSection collections={value} onClickRemove={onClickRemove} />
-      </s-stack>
-    </s-section>
-  );
-}
-
-function CollectionsSection({
-  collections,
-  onClickRemove,
-}) {
-  if (collections.length === 0) {
-    return null;
-  }
-
-  return collections.map(collection => (
-    <s-stack
-      direction="inline"
-      alignItems="center"
-      justifyContent="space-between"
-      key={collection.id}
-    >
-      <s-link
-        href={`shopify://admin/collections/${collection.id.split("/").pop()}`}
-        target="_blank"
-      >
-        {collection.title}
-      </s-link>
-      <s-button variant="tertiary" onClick={() => onClickRemove(collection.id)}>
-        <s-icon type="x-circle" />
-      </s-button>
-    </s-stack>
-  ));
-}
-
 function App() {
   const {
     applyExtensionMetafieldChange,
+    discountTitle,
     i18n,
-    initialPercentages,
-    onPercentageValueChange,
-    percentages,
+    initialDiscountTitle,
+    initialLineProperty,
+    initialMinSpend,
+    initialRedemptions,
+    lineProperty,
+    minSpend,
+    onDiscountTitleChange,
+    onLinePropertyChange,
+    onMinSpendChange,
+    onRedemptionsChange,
+    redemptions,
     resetForm,
-    initialCollections,
-    collections,
-    appliesTo,
-    onAppliesToChange,
-    removeCollection,
-    onSelectedCollections,
-    loading,
+    shopCurrencyCode,
   } = useExtensionData();
 
-  const [error, setError] = useState();
+  const [ error, setError ] = useState();
 
-  const {discounts} = shopify;
-  const discountClassesSignalValue = discounts?.discountClasses?.value ?? [];
-
-  const handleToggleDiscountClass = async (nextValue) => {
-    const nextDiscountClasses = discountClassesSignalValue.includes(
-      nextValue,
-    )
-      ? discountClassesSignalValue.filter((c) => c !== nextValue)
-      : [...discountClassesSignalValue, nextValue];
-
-    const result =
-      await discounts?.updateDiscountClasses?.(nextDiscountClasses);
-
-    if (!result.success) {
-      setError(i18n.translate("error"));
-    }
-
-    if (result.success && error) {
-      setError(undefined);
-    }
-  };
-
-  if (loading) {
-    return <s-text>{i18n.translate("loading")}</s-text>;
-  }
+  useEffect(() => {
+    ensureProductDiscountClass().catch(() => {
+      setError(i18n.translate('error'));
+    });
+  }, [ i18n ]);
 
   return (
     <s-function-settings
-      onSubmit={event => {
-        event.waitUntil?.(applyExtensionMetafieldChange());
+      onSubmit={(event) => {
+        event.waitUntil?.(applyExtensionMetafieldChange().catch((err) => {
+          setError(err instanceof Error ? err.message : String(err));
+        }));
       }}
       onReset={resetForm}
     >
-      <s-heading>{i18n.translate("title")}</s-heading>
+      <s-heading>{ i18n.translate('title') }</s-heading>
       <s-section>
         <s-stack gap="base">
-          {error ? <s-banner tone="critical">{error}</s-banner> : null}
-          <s-stack gap="none">
-            <s-checkbox
-              checked={discountClassesSignalValue.includes("product")}
-              onChange={() => handleToggleDiscountClass("product")}
-              label={i18n.translate("discountClasses.product")}
-              disabled={
-                discountClassesSignalValue.length === 1 &&
-                discountClassesSignalValue.includes("product")
-              }
-            />
-
-            {discountClassesSignalValue.includes("product") ? (
-              <s-stack gap="none">
-                <s-number-field
-                  label={i18n.translate("label")}
-                  name="product"
-                  value={String(percentages.product)}
-                  defaultValue={String(initialPercentages.product)}
-                  min={0}
-                  max={100}
-                  onChange={event =>
-                    onPercentageValueChange(
-                      "product",
-                      event.currentTarget.value,
-                    )
-                  }
-                  suffix="%"
-                />
-                <AppliesToCollections
-                  onClickAdd={onSelectedCollections}
-                  onClickRemove={removeCollection}
-                  value={collections}
-                  defaultValue={initialCollections}
-                  i18n={i18n}
-                  appliesTo={appliesTo}
-                  onAppliesToChange={onAppliesToChange}
-                />
-              </s-stack>
-            ) : null}
-          </s-stack>
-
-          <s-divider />
-
-          <s-stack gap="none">
-            <s-checkbox
-              checked={discountClassesSignalValue.includes("order")}
-              onChange={() => handleToggleDiscountClass("order")}
-              label={i18n.translate("discountClasses.order")}
-              disabled={
-                discountClassesSignalValue.length === 1 &&
-                discountClassesSignalValue.includes("order")
-              }
-            />
-
-            {discountClassesSignalValue.includes("order") ? (
-              <s-number-field
-                label={i18n.translate("label")}
-                name="order"
-                value={String(percentages.order)}
-                defaultValue={String(initialPercentages.order)}
-                min={0}
-                max={100}
-                onChange={event =>
-                  onPercentageValueChange("order", event.currentTarget.value)
-                }
-                suffix="%"
-              />
-            ) : null}
-          </s-stack>
-
-          <s-divider />
-
-          <s-stack gap="none">
-            <s-checkbox
-              checked={discountClassesSignalValue.includes("shipping")}
-              onChange={() => handleToggleDiscountClass("shipping")}
-              label={i18n.translate("discountClasses.shipping")}
-              disabled={
-                discountClassesSignalValue.length === 1 &&
-                discountClassesSignalValue.includes("shipping")
-              }
-            />
-
-            {discountClassesSignalValue.includes("shipping") ? (
-              <s-number-field
-                label={i18n.translate("label")}
-                name="shipping"
-                value={String(percentages.shipping)}
-                defaultValue={String(initialPercentages.shipping)}
-                min={0}
-                max={100}
-                onChange={event =>
-                  onPercentageValueChange("shipping", event.currentTarget.value)
-                }
-                suffix="%"
-              />
-            ) : null}
-          </s-stack>
+          { error ? <s-banner tone="critical">{ error }</s-banner> : null }
+          <s-paragraph color="subdued">{ i18n.translate('helpText') }</s-paragraph>
+          <s-text-field
+            label={ i18n.translate('linePropertyLabel') }
+            name="lineProperty"
+            value={ lineProperty }
+            defaultValue={ initialLineProperty }
+            onChange={(event) => onLinePropertyChange(event.currentTarget.value)}
+          />
+          <s-number-field
+            label={ `${ i18n.translate('minSpendLabel') } (${ shopCurrencyCode || '—' })` }
+            name="minSpend"
+            value={ String(minSpend) }
+            defaultValue={ String(initialMinSpend) }
+            min={ 0 }
+            step={ 0.01 }
+            onChange={(event) => onMinSpendChange(event.currentTarget.value)}
+          />
+          <s-text-field
+            label={ i18n.translate('discountMessageLabel') }
+            name="discountTitle"
+            value={ discountTitle }
+            defaultValue={ initialDiscountTitle }
+            onChange={(event) => onDiscountTitleChange(event.currentTarget.value)}
+          />
+          <s-select
+            label={ i18n.translate('redemptionsLabel') }
+            name="redemptions"
+            value={ redemptions }
+            onChange={(event) => onRedemptionsChange(event.currentTarget.value)}
+          >
+            <s-option value={ REDEMPTIONS_ONE }>{ i18n.translate('redemptionsOne') }</s-option>
+            <s-option value={ REDEMPTIONS_MULTIPLE }>{ i18n.translate('redemptionsMultiple') }</s-option>
+          </s-select>
+          <s-paragraph color="subdued">
+            { redemptions === REDEMPTIONS_MULTIPLE
+              ? i18n.translate('redemptionsMultipleNote')
+              : i18n.translate('redemptionsOneNote') }
+          </s-paragraph>
+          <s-paragraph color="subdued">{ i18n.translate('bundleExcludeNote') }</s-paragraph>
         </s-stack>
       </s-section>
     </s-function-settings>
@@ -247,150 +96,177 @@ function App() {
 }
 
 function useExtensionData() {
-  const {applyMetafieldChange, i18n, data, resourcePicker, query} = shopify;
+  const { applyMetafieldChange, data, i18n, query } = shopify;
+
+  const metafieldValue = data?.metafields?.find(
+    (metafield) => metafield.key === 'function-configuration',
+  )?.value;
 
   const metafieldConfig = useMemo(
-    () =>
-      parseMetafield(
-        data?.metafields?.find(
-          metafield => metafield.key === "function-configuration",
-        )?.value,
-      ),
-    [data?.metafields],
+    () => parseMetafield(metafieldValue),
+    [ metafieldValue ],
   );
 
-  const [percentages, setPercentages] = useState(metafieldConfig.percentages);
-  const [initialCollections, setInitialCollections] = useState(
-    [],
-  );
-  const [collections, setCollections] = useState([]);
-  const [appliesTo, setAppliesTo] = useState("all");
-  const [loading, setLoading] = useState(false);
+  const [ lineProperty, setLineProperty ] = useState(metafieldConfig.lineProperty);
+  const [ initialLineProperty, setInitialLineProperty ] = useState(metafieldConfig.lineProperty);
+  const [ minSpend, setMinSpend ] = useState(metafieldConfig.minSpend);
+  const [ initialMinSpend, setInitialMinSpend ] = useState(metafieldConfig.minSpend);
+  const [ discountTitle, setDiscountTitle ] = useState(metafieldConfig.discountTitle);
+  const [ initialDiscountTitle, setInitialDiscountTitle ] = useState(metafieldConfig.discountTitle);
+  const [ redemptions, setRedemptions ] = useState(metafieldConfig.redemptions);
+  const [ initialRedemptions, setInitialRedemptions ] = useState(metafieldConfig.redemptions);
+  const [ shopCurrencyCode, setShopCurrencyCode ] = useState('');
 
   useEffect(() => {
-    const fetchCollections = async () => {
-      setLoading(true);
-      const selectedCollections = await getCollections(
-        metafieldConfig.collectionIds,
-        query,
-      );
-      setInitialCollections(selectedCollections);
-      setCollections(selectedCollections);
-      setLoading(false);
-      setAppliesTo(selectedCollections.length > 0 ? "collections" : "all");
+    setLineProperty(metafieldConfig.lineProperty);
+    setInitialLineProperty(metafieldConfig.lineProperty);
+    setMinSpend(metafieldConfig.minSpend);
+    setInitialMinSpend(metafieldConfig.minSpend);
+    setDiscountTitle(metafieldConfig.discountTitle);
+    setInitialDiscountTitle(metafieldConfig.discountTitle);
+    setRedemptions(metafieldConfig.redemptions);
+    setInitialRedemptions(metafieldConfig.redemptions);
+  }, [
+    metafieldConfig.lineProperty,
+    metafieldConfig.minSpend,
+    metafieldConfig.discountTitle,
+    metafieldConfig.redemptions,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getShopCurrencyCode(query)
+      .then((currencyCode) => {
+        if (!cancelled) {
+          setShopCurrencyCode(currencyCode);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setShopCurrencyCode('');
+        }
+      });
+
+    return () => {
+      cancelled = true;
     };
-    fetchCollections();
-  }, [metafieldConfig.collectionIds, query]);
-
-  const onPercentageValueChange = async (type, value) => {
-    setPercentages(prev => ({
-      ...prev,
-      [type]: Number(value),
-    }));
-  };
-
-  const onAppliesToChange = (value) => {
-    setAppliesTo(value);
-    if (value === "all") {
-      setCollections([]);
-    }
-  };
+  }, [ query ]);
 
   async function applyExtensionMetafieldChange() {
+    const trimmedLineProperty = lineProperty.trim();
+    if (!trimmedLineProperty) {
+      throw new Error(i18n.translate('linePropertyRequired'));
+    }
+
+    const amount = typeof minSpend === 'number'
+      ? minSpend
+      : parseFloat(String(minSpend ?? ''));
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error(i18n.translate('minSpendInvalid'));
+    }
+
+    const config = {
+      lineProperty: trimmedLineProperty,
+      minSpend: amount.toFixed(2),
+      discountTitle: discountTitle.trim(),
+      redemptions: redemptions === REDEMPTIONS_MULTIPLE
+        ? REDEMPTIONS_MULTIPLE
+        : REDEMPTIONS_ONE,
+    };
+
     await applyMetafieldChange({
-      type: "updateMetafield",
-      namespace: "$app",
-      key: "function-configuration",
-      value: JSON.stringify({
-        cartLinePercentage: percentages.product,
-        orderPercentage: percentages.order,
-        deliveryPercentage: percentages.shipping,
-        collectionIds: collections.map(({id}) => id),
-      }),
-      valueType: "json",
+      type: 'updateMetafield',
+      namespace: '$app',
+      key: 'function-configuration',
+      value: JSON.stringify(config),
+      valueType: 'json',
     });
-    setInitialCollections(collections);
+
+    setInitialLineProperty(config.lineProperty);
+    setInitialMinSpend(amount);
+    setInitialDiscountTitle(config.discountTitle);
+    setInitialRedemptions(config.redemptions);
+    setLineProperty(config.lineProperty);
+    setMinSpend(amount);
+    setDiscountTitle(config.discountTitle);
+    setRedemptions(config.redemptions);
   }
 
   const resetForm = () => {
-    setPercentages(metafieldConfig.percentages);
-    setCollections(initialCollections);
-    setAppliesTo(initialCollections.length > 0 ? "collections" : "all");
-  };
-
-  const onSelectedCollections = async () => {
-    const selection = await resourcePicker({
-      type: "collection",
-      selectionIds: collections.map(({id}) => ({id})),
-      action: "select",
-      multiple: true,
-      filter: {
-        archived: true,
-        variants: true,
-      },
-    });
-    setCollections(selection ?? []);
-  };
-
-  const removeCollection = (id) => {
-    setCollections(prev => prev.filter(collection => collection.id !== id));
+    setLineProperty(initialLineProperty);
+    setMinSpend(initialMinSpend);
+    setDiscountTitle(initialDiscountTitle);
+    setRedemptions(initialRedemptions);
   };
 
   return {
     applyExtensionMetafieldChange,
+    discountTitle,
     i18n,
-    initialPercentages: metafieldConfig.percentages,
-    onPercentageValueChange,
-    percentages,
+    initialDiscountTitle,
+    initialLineProperty,
+    initialMinSpend,
+    initialRedemptions,
+    lineProperty,
+    minSpend,
+    onDiscountTitleChange: setDiscountTitle,
+    onLinePropertyChange: setLineProperty,
+    onMinSpendChange: (value) => setMinSpend(Number(value)),
+    onRedemptionsChange: (value) => setRedemptions(
+      value === REDEMPTIONS_MULTIPLE ? REDEMPTIONS_MULTIPLE : REDEMPTIONS_ONE,
+    ),
+    redemptions,
     resetForm,
-    collections,
-    initialCollections,
-    removeCollection,
-    onSelectedCollections,
-    loading,
-    appliesTo,
-    onAppliesToChange,
+    shopCurrencyCode,
   };
+}
+
+async function ensureProductDiscountClass() {
+  const discountClasses = shopify.discounts?.discountClasses?.value ?? [];
+  if (discountClasses.includes('product') && discountClasses.length === 1) {
+    return;
+  }
+
+  const result = await shopify.discounts?.updateDiscountClasses?.([ 'product' ]);
+  if (!result?.success) {
+    throw new Error('Unable to update discount classes');
+  }
 }
 
 function parseMetafield(value) {
   try {
-    const parsed = JSON.parse(value || "{}");
+    const parsed = JSON.parse(value || '{}');
+    const minSpendAmount = parsed.minSpend != null
+      ? Number(parsed.minSpend)
+      : 0;
+
     return {
-      percentages: {
-        product: Number(parsed.cartLinePercentage ?? 0),
-        order: Number(parsed.orderPercentage ?? 0),
-        shipping: Number(parsed.deliveryPercentage ?? 0),
-      },
-      collectionIds: parsed.collectionIds ?? [],
+      lineProperty: typeof parsed.lineProperty === 'string' ? parsed.lineProperty : '',
+      minSpend: Number.isFinite(minSpendAmount) ? minSpendAmount : 0,
+      discountTitle: typeof parsed.discountTitle === 'string' ? parsed.discountTitle : '',
+      redemptions: parsed.redemptions === REDEMPTIONS_MULTIPLE
+        ? REDEMPTIONS_MULTIPLE
+        : REDEMPTIONS_ONE,
     };
   } catch {
     return {
-      percentages: {product: 0, order: 0, shipping: 0},
-      collectionIds: [],
+      lineProperty: '',
+      minSpend: 0,
+      discountTitle: '',
+      redemptions: REDEMPTIONS_ONE,
     };
   }
 }
 
-async function getCollections(
-  collectionGids,
-  adminApiQuery,
-) {
-  const query = `#graphql
-    query GetCollections($ids: [ID!]!) {
-      collections: nodes(ids: $ids) {
-        ... on Collection {
-          id
-          title
-        }
+async function getShopCurrencyCode(adminApiQuery) {
+  const gql = `#graphql
+    query DiscountAwareFreeGiftShopCurrency {
+      shop {
+        currencyCode
       }
     }
   `;
-  const result = await adminApiQuery(
-    query,
-    {variables: {ids: collectionGids}},
-  );
-  return result?.data?.collections ?? [];
+  const result = await adminApiQuery(gql);
+  return result?.data?.shop?.currencyCode ?? '';
 }
-
-

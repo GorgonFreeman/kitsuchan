@@ -1,20 +1,19 @@
 {
-  "name": "[Example] Discount UI extension",
-  "description": "Discount UI extension",
-  "title": "Select which discount types to apply at checkout",
+  "name": "Discount-aware free gift settings",
+  "description": "Configure a gift-line discount that counts the gift toward minimum spend",
+  "title": "Discount-aware free gift",
+  "helpText": "Gift lines are identified by a matching line item property. Every product line counts toward the minimum, including the gift. The discount is that gift line's price and applies only to the gift. Add _hoodie_bundle_exclude on the gift line so the hoodie bundle does not pair it, and allow this discount to combine with product discounts.",
   "loading": "Loading...",
-  "label": "Percentage off",
-  "collections": {
-    "buttonLabel": "Choose collections",
-    "allProducts": "All products",
-    "collections": "Collections",
-    "appliesTo": "Applies to"
-  },
-  "discountClasses": {
-    "product": "Product discount",
-    "order": "Order discount",
-    "shipping": "Shipping discount"
-  },
-  "error": "Unable to update discount types. Please try again."
+  "linePropertyLabel": "Line item property key",
+  "linePropertyRequired": "Line item property key is required",
+  "minSpendLabel": "Minimum spend",
+  "minSpendInvalid": "Minimum spend must be zero or greater",
+  "discountMessageLabel": "Discount message",
+  "redemptionsLabel": "Redemptions",
+  "redemptionsOne": "One",
+  "redemptionsMultiple": "Multiple",
+  "redemptionsOneNote": "Customers get one free gift when the cart reaches the minimum spend.",
+  "redemptionsMultipleNote": "Customers get one free gift for each multiple of the minimum spend.",
+  "bundleExcludeNote": "The gift line also needs the _hoodie_bundle_exclude line item property so the hoodie bundle discount skips it.",
+  "error": "Unable to save free gift settings. Please try again."
 }
-

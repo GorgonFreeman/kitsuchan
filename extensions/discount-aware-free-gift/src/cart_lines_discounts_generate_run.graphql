@@ -1,15 +1,30 @@
-query CartInput {
+query CartInput($lineProperty: String!) {
   cart {
     lines {
       id
+      quantity
+      giftAttribute: attribute(key: $lineProperty) {
+        key
+        value
+      }
       cost {
+        amountPerQuantity {
+          amount
+        }
         subtotalAmount {
           amount
         }
       }
+      merchandise {
+        __typename
+      }
     }
   }
+  presentmentCurrencyRate
   discount {
     discountClasses
+    metafield(namespace: "$app", key: "function-configuration") {
+      jsonValue
+    }
   }
 }

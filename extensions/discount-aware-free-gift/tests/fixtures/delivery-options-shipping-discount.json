@@ -15,30 +15,7 @@
       }
     },
     "output": {
-      "operations": [
-        {
-          "deliveryDiscountsAdd": {
-            "candidates": [
-              {
-                "message": "FREE DELIVERY",
-                "targets": [
-                  {
-                    "deliveryGroup": {
-                      "id": "gid://shopify/CartDeliveryGroup/1"
-                    }
-                  }
-                ],
-                "value": {
-                  "percentage": {
-                    "value": 100.0
-                  }
-                }
-              }
-            ],
-            "selectionStrategy": "ALL"
-          }
-        }
-      ]
+      "operations": []
     }
   }
 }
