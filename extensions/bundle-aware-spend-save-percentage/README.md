@@ -26,7 +26,7 @@ Pairing math is imported from [`collection-pair-discount/src/collectionPairing.j
   "bundleCollectionIds": ["gid://shopify/Collection/HOODIE"],
   "eligibleCollectionIds": ["gid://shopify/Collection/SALE"],
   "itemCount": 2,
-  "discountTitle": "Spend & Save",
+  "discountTitle": "Spend & Save [discountAmount]%",
   "pricingMode": "single",
   "shopCurrencyCode": "AUD",
   "bundlePrice": "100.00",

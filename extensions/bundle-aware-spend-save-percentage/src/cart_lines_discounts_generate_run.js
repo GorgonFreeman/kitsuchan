@@ -114,7 +114,7 @@ export function cartLinesDiscountsGenerateRun(input) {
     return { operations: [] };
   }
 
-  const discountMessage = config.discountTitle?.trim() || null;
+  const discountMessage = formatDiscountTitle(config.discountTitle, percent);
   const candidates = [ ...lineQuantities.entries() ].map(([ lineId, quantity ]) => ({
     ...(discountMessage ? { message: discountMessage } : {}),
     targets: [
@@ -142,6 +142,21 @@ export function cartLinesDiscountsGenerateRun(input) {
       },
     ],
   };
+}
+
+/**
+  * Replace `[discountAmount]` with the unlocked percent (e.g. 20).
+  * @param {string} title
+  * @param {number} percent
+  * @returns {string | null}
+  */
+function formatDiscountTitle(title, percent) {
+  const trimmed = typeof title === 'string' ? title.trim() : '';
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.replace(/\[discountAmount\]/g, String(percent));
 }
 
 /**

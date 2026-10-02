@@ -195,6 +195,7 @@ function App() {
             defaultValue={ initialDiscountMessage }
             onChange={(event) => onDiscountMessageChange(event.currentTarget.value)}
           />
+          <s-paragraph color="subdued">{ i18n.translate('discountMessageHelp') }</s-paragraph>
         </s-stack>
       </s-section>
     </s-function-settings>

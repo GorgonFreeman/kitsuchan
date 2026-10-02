@@ -23,5 +23,6 @@
   "spendSavePercentCsvLabel": "Tiers (CSV)",
   "spendSavePercentCsvHelp": "Shop-currency spend|percent pairs, comma-separated. Example: 75|15,150|20,200|30. Highest unlocked tier wins.",
   "discountMessageLabel": "Discount message",
+  "discountMessageHelp": "Shown on discounted lines. Use [discountAmount] for the unlocked percent, e.g. Spend & Save [discountAmount]%.",
   "error": "Unable to save settings. Please try again."
 }

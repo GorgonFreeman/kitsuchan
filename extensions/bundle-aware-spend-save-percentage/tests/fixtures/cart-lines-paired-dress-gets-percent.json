@@ -116,7 +116,7 @@
               "gid://shopify/Collection/SALE"
             ],
             "itemCount": 2,
-            "discountTitle": "Spend & Save",
+            "discountTitle": "Spend & Save [discountAmount]%",
             "pricingMode": "single",
             "shopCurrencyCode": "AUD",
             "bundlePrice": "100.00",
@@ -137,7 +137,7 @@
           "productDiscountsAdd": {
             "candidates": [
               {
-                "message": "Spend & Save",
+                "message": "Spend & Save 20%",
                 "targets": [
                   {
                     "cartLine": {
