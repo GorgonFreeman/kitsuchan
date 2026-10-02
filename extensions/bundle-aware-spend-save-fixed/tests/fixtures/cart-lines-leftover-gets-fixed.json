@@ -1,0 +1,103 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/hoodies",
+            "quantity": 3,
+            "excludeAttribute": null,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "80.00",
+                "currencyCode": "AUD"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": true
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "localization": {
+        "market": {
+          "id": "gid://shopify/Market/1"
+        }
+      },
+      "presentmentCurrencyRate": "1",
+      "shop": {
+        "metafield": {
+          "jsonValue": {
+            "base": "AUD",
+            "AUD": 1
+          }
+        }
+      },
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "bundleCollectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "eligibleCollectionIds": [],
+            "itemCount": 2,
+            "discountTitle": "Spend & Save",
+            "pricingMode": "single",
+            "shopCurrencyCode": "AUD",
+            "bundlePrice": "100.00",
+            "spendSaveFixedCsv": "75|15,150|40,200|60"
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": [
+        "gid://shopify/Collection/HOODIE"
+      ]
+    },
+    "output": {
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "message": "Spend & Save",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/hoodies",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "40.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "ALL"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,15 @@
+api_version = "2026-04"
+[[extensions]]
+name = "t:name"
+description = "t:description"
+handle = "bundle-aware-spend-save-fixed-settings"
+uid = "9d97d552-0a77-4e86-82f2-d725a462cc61"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/DiscountFunctionSettings.jsx"
+target = "admin.discount-details.function-settings.render"
+
+[[extensions.metafields]]
+namespace = "$app"
+key = "function-configuration"

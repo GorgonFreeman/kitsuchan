@@ -1,0 +1,4 @@
+{
+  "name": "Bundle-aware Spend & Save $",
+  "description": "Fixed amount off eligible products after simulating collection-pair bundles toward min spend; split across non-paired eligible units"
+}
