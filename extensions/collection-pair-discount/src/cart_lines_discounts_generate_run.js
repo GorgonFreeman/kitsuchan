@@ -6,14 +6,20 @@ import {
   cartPresentmentCurrencyCode,
   parseConversionRates,
   parseShopCurrencyCode,
-  resolveMarketBundlePresentmentCents,
 } from './marketCurrency.js';
+import {
+  getPairs,
+  lineDiscountBucketsFromPairs,
+  moneyToCents,
+  parsePresentmentCurrencyRate,
+  resolveBundlePriceCents,
+} from './collectionPairing.js';
 
 /**
   * @typedef {import("../generated/api").CartInput} RunInput
   * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
   * @typedef {{ collectionIds: string[], itemCount: number, discountTitle: string, pricingMode: 'single' | 'markets', shopCurrencyCode: string, markets: Record<string, { enabled?: boolean, bundlePrice?: unknown, currencyCode?: string }>, bundlePrice: unknown }} ParsedConfig
-  * @typedef {{ lineId: string, unitPriceCents: number }} BundleUnit
+  * @typedef {{ unitId: string, lineId: string, unitPriceCents: number }} BundleUnit
   */
 
 const DEFAULT_ITEM_COUNT = 2;
@@ -60,35 +66,8 @@ export function cartLinesDiscountsGenerateRun(input) {
     return { operations: [] };
   }
 
-  units.sort((left, right) => left.unitPriceCents - right.unitPriceCents);
-
-  const pairs = pairUnits(units, config.itemCount);
-  if (!pairs.length) {
-    return { operations: [] };
-  }
-
-  /** @type {Map<string, { discountedQty: number, totalDiscountCents: number }>} */
-  const lineBuckets = new Map();
-
-  for (const pair of pairs) {
-    const pricesCents = pair.map((unit) => unit.unitPriceCents);
-    const discountsCents = proportionalDiscountCents(pricesCents, bundlePriceCents);
-
-    pair.forEach((unit, index) => {
-      const discountCents = discountsCents[ index ];
-      if (discountCents <= 0) {
-        return;
-      }
-
-      const bucket = lineBuckets.get(unit.lineId) ?? {
-        discountedQty: 0,
-        totalDiscountCents: 0,
-      };
-      bucket.discountedQty += 1;
-      bucket.totalDiscountCents += discountCents;
-      lineBuckets.set(unit.lineId, bucket);
-    });
-  }
+  const pairs = getPairs(units, config.itemCount);
+  const lineBuckets = lineDiscountBucketsFromPairs(pairs, bundlePriceCents);
 
   if (!lineBuckets.size) {
     return { operations: [] };
@@ -183,79 +162,13 @@ function inferPricingMode(config, markets) {
 }
 
 /**
-  * @param {{
-  *   config: ParsedConfig,
-  *   marketId: string | null,
-  *   presentmentCurrencyRate: number,
-  *   cartCurrencyCode: string,
-  *   shopCurrencyCode: string,
-  *   conversionRates: Record<string, number>,
-  * }} input
-  * @returns {number | null}
-  */
-function resolveBundlePriceCents(input) {
-  const {
-    config,
-    marketId,
-    presentmentCurrencyRate,
-    cartCurrencyCode,
-    shopCurrencyCode,
-    conversionRates,
-  } = input;
-
-  if (config.pricingMode === 'single') {
-    const shopCurrencyCents = moneyToCents(config.bundlePrice);
-    if (shopCurrencyCents == null || shopCurrencyCents <= 0) {
-      return null;
-    }
-
-    return Math.round(shopCurrencyCents * presentmentCurrencyRate);
-  }
-
-  if (!marketId || !config.markets[ marketId ]) {
-    return null;
-  }
-
-  const entry = config.markets[ marketId ];
-  if (entry.enabled === false) {
-    return null;
-  }
-
-  const cents = moneyToCents(entry.bundlePrice);
-  if (cents == null || cents <= 0) {
-    return null;
-  }
-
-  return resolveMarketBundlePresentmentCents({
-    bundlePriceCents: cents,
-    configCurrencyCode: typeof entry.currencyCode === 'string' ? entry.currencyCode : '',
-    cartCurrencyCode,
-    shopCurrencyCode,
-    presentmentCurrencyRate,
-    conversionRates,
-  });
-}
-
-/**
-  * @param {unknown} value
-  * @returns {number}
-  */
-function parsePresentmentCurrencyRate(value) {
-  const rate = parseFloat(String(value ?? '1'));
-  if (!Number.isFinite(rate) || rate <= 0) {
-    return 1;
-  }
-
-  return rate;
-}
-
-/**
   * @param {RunInput['cart']['lines']} lines
   * @returns {BundleUnit[]}
   */
 function expandEligibleUnits(lines) {
   /** @type {BundleUnit[]} */
   const units = [];
+  let seq = 0;
 
   for (const line of lines) {
     if (line.merchandise.__typename !== 'ProductVariant') {
@@ -277,6 +190,7 @@ function expandEligibleUnits(lines) {
 
     for (let i = 0; i < line.quantity; i += 1) {
       units.push({
+        unitId: `${ line.id }#${ seq++ }`,
         lineId: line.id,
         unitPriceCents,
       });
@@ -284,59 +198,4 @@ function expandEligibleUnits(lines) {
   }
 
   return units;
-}
-
-/**
-  * @param {BundleUnit[]} units
-  * @param {number} itemCount
-  * @returns {BundleUnit[][]}
-  */
-function pairUnits(units, itemCount) {
-  /** @type {BundleUnit[][]} */
-  const pairs = [];
-
-  for (let i = 0; i + itemCount <= units.length; i += itemCount) {
-    pairs.push(units.slice(i, i + itemCount));
-  }
-
-  return pairs;
-}
-
-/**
-  * @param {number[]} unitPricesCents
-  * @param {number} bundlePriceCents
-  * @returns {number[]}
-  */
-function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
-  const subtotalCents = unitPricesCents.reduce((sum, value) => sum + value, 0);
-  const totalDiscountCents = subtotalCents - bundlePriceCents;
-  if (totalDiscountCents <= 0) {
-    return unitPricesCents.map(() => 0);
-  }
-
-  const discounts = unitPricesCents.map((priceCents) =>
-    Math.floor((totalDiscountCents * priceCents) / subtotalCents),
-  );
-  const assignedCents = discounts.reduce((sum, value) => sum + value, 0);
-  const remainderCents = totalDiscountCents - assignedCents;
-
-  if (remainderCents > 0) {
-    const highestIndex = unitPricesCents.indexOf(Math.max(...unitPricesCents));
-    discounts[ highestIndex ] += remainderCents;
-  }
-
-  return discounts;
-}
-
-/**
-  * @param {unknown} value
-  * @returns {number | null}
-  */
-function moneyToCents(value) {
-  const amount = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
-  if (!Number.isFinite(amount)) {
-    return null;
-  }
-
-  return Math.round(amount * 100);
 }

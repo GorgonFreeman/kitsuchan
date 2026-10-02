@@ -6,8 +6,15 @@ import {
   cartPresentmentCurrencyCode,
   parseConversionRates,
   parseShopCurrencyCode,
-  resolveMarketBundlePresentmentCents,
-} from './marketCurrency.js';
+} from '../../collection-pair-discount/src/marketCurrency.js';
+import {
+  getPairs,
+  getPostPairsSubtotal,
+  moneyToCents,
+  pairedUnitIdSet,
+  parsePresentmentCurrencyRate,
+  resolveBundlePriceCents,
+} from '../../collection-pair-discount/src/collectionPairing.js';
 
 /**
   * @typedef {import("../generated/api").CartInput} RunInput
@@ -79,14 +86,10 @@ export function cartLinesDiscountsGenerateRun(input) {
     return { operations: [] };
   }
 
-  const { pairedUnitIds, simulatedDiscountCents } = simulateBundles(
-    units,
-    bundlePriceCents,
-    config.itemCount,
-  );
-
-  const grossSpendCents = units.reduce((sum, unit) => sum + unit.unitPriceCents, 0);
-  const artificialSpendCents = Math.max(0, grossSpendCents - simulatedDiscountCents);
+  const bundleUnits = units.filter((unit) => unit.inBundleCollection && !unit.excluded);
+  const pairs = getPairs(bundleUnits, config.itemCount);
+  const pairedUnitIds = pairedUnitIdSet(pairs);
+  const artificialSpendCents = getPostPairsSubtotal(units, pairs, bundlePriceCents);
 
   const percent = pickBestPercent(
     config.spendSavePercentTiers,
@@ -263,73 +266,6 @@ function pickBestPercent(tiers, artificialSpendCents, presentmentRate) {
 }
 
 /**
-  * @param {{
-  *   config: ParsedConfig,
-  *   marketId: string | null,
-  *   presentmentCurrencyRate: number,
-  *   cartCurrencyCode: string,
-  *   shopCurrencyCode: string,
-  *   conversionRates: Record<string, number>,
-  * }} input
-  * @returns {number | null}
-  */
-function resolveBundlePriceCents(input) {
-  const {
-    config,
-    marketId,
-    presentmentCurrencyRate,
-    cartCurrencyCode,
-    shopCurrencyCode,
-    conversionRates,
-  } = input;
-
-  if (config.pricingMode === 'single') {
-    const shopCurrencyCents = moneyToCents(config.bundlePrice);
-    if (shopCurrencyCents == null || shopCurrencyCents <= 0) {
-      return null;
-    }
-
-    return Math.round(shopCurrencyCents * presentmentCurrencyRate);
-  }
-
-  if (!marketId || !config.markets[ marketId ]) {
-    return null;
-  }
-
-  const entry = config.markets[ marketId ];
-  if (entry.enabled === false) {
-    return null;
-  }
-
-  const cents = moneyToCents(entry.bundlePrice);
-  if (cents == null || cents <= 0) {
-    return null;
-  }
-
-  return resolveMarketBundlePresentmentCents({
-    bundlePriceCents: cents,
-    configCurrencyCode: typeof entry.currencyCode === 'string' ? entry.currencyCode : '',
-    cartCurrencyCode,
-    shopCurrencyCode,
-    presentmentCurrencyRate,
-    conversionRates,
-  });
-}
-
-/**
-  * @param {unknown} value
-  * @returns {number}
-  */
-function parsePresentmentCurrencyRate(value) {
-  const rate = parseFloat(String(value ?? '1'));
-  if (!Number.isFinite(rate) || rate <= 0) {
-    return 1;
-  }
-
-  return rate;
-}
-
-/**
   * @param {Array<{ collectionId?: string, isMember?: boolean }> | null | undefined} memberships
   * @returns {Set<string>}
   */
@@ -395,76 +331,4 @@ function expandUnits(lines, config) {
   }
 
   return units;
-}
-
-/**
-  * Same pairing as collection-pair-discount: cheapest-first groups of itemCount,
-  * proportional discount attribution. Only non-excluded bundle-collection units pair.
-  *
-  * @param {Unit[]} units
-  * @param {number} bundlePriceCents
-  * @param {number} itemCount
-  * @returns {{ pairedUnitIds: Set<string>, simulatedDiscountCents: number }}
-  */
-function simulateBundles(units, bundlePriceCents, itemCount) {
-  const bundleUnits = units
-    .filter((unit) => unit.inBundleCollection && !unit.excluded)
-    .slice()
-    .sort((left, right) => left.unitPriceCents - right.unitPriceCents);
-
-  /** @type {Set<string>} */
-  const pairedUnitIds = new Set();
-  let simulatedDiscountCents = 0;
-
-  for (let i = 0; i + itemCount <= bundleUnits.length; i += itemCount) {
-    const pair = bundleUnits.slice(i, i + itemCount);
-    const pricesCents = pair.map((unit) => unit.unitPriceCents);
-    const discountsCents = proportionalDiscountCents(pricesCents, bundlePriceCents);
-
-    pair.forEach((unit, index) => {
-      pairedUnitIds.add(unit.unitId);
-      simulatedDiscountCents += discountsCents[ index ] || 0;
-    });
-  }
-
-  return { pairedUnitIds, simulatedDiscountCents };
-}
-
-/**
-  * @param {number[]} unitPricesCents
-  * @param {number} bundlePriceCents
-  * @returns {number[]}
-  */
-function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
-  const subtotalCents = unitPricesCents.reduce((sum, value) => sum + value, 0);
-  const totalDiscountCents = subtotalCents - bundlePriceCents;
-  if (totalDiscountCents <= 0) {
-    return unitPricesCents.map(() => 0);
-  }
-
-  const discounts = unitPricesCents.map((priceCents) =>
-    Math.floor((totalDiscountCents * priceCents) / subtotalCents),
-  );
-  const assignedCents = discounts.reduce((sum, value) => sum + value, 0);
-  const remainderCents = totalDiscountCents - assignedCents;
-
-  if (remainderCents > 0) {
-    const highestIndex = unitPricesCents.indexOf(Math.max(...unitPricesCents));
-    discounts[ highestIndex ] += remainderCents;
-  }
-
-  return discounts;
-}
-
-/**
-  * @param {unknown} value
-  * @returns {number | null}
-  */
-function moneyToCents(value) {
-  const amount = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
-  if (!Number.isFinite(amount)) {
-    return null;
-  }
-
-  return Math.round(amount * 100);
 }
