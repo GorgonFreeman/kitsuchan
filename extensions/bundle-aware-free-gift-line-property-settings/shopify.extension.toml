@@ -1,0 +1,15 @@
+api_version = "2026-04"
+[[extensions]]
+name = "t:name"
+description = "t:description"
+handle = "bundle-aware-free-gift-line-property-settings"
+uid = "5c8b697a-cd0b-4004-9c63-7f74bd97bea5"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/DiscountFunctionSettings.jsx"
+target = "admin.discount-details.function-settings.render"
+
+[[extensions.metafields]]
+namespace = "$app"
+key = "function-configuration"

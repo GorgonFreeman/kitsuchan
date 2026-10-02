@@ -1,0 +1,200 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/paid",
+            "quantity": 1,
+            "excludeAttribute": null,
+            "giftAttribute": null,
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "200.00",
+                "currencyCode": "AUD"
+              },
+              "subtotalAmount": {
+                "amount": "200.00"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/gift-cheap",
+            "quantity": 1,
+            "excludeAttribute": null,
+            "giftAttribute": {
+              "key": "_free_gift_hoodie",
+              "value": "1"
+            },
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "30.00",
+                "currencyCode": "AUD"
+              },
+              "subtotalAmount": {
+                "amount": "30.00"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/gift-dear",
+            "quantity": 1,
+            "excludeAttribute": null,
+            "giftAttribute": {
+              "key": "_free_gift_hoodie",
+              "value": "1"
+            },
+            "cost": {
+              "amountPerQuantity": {
+                "amount": "50.00",
+                "currencyCode": "AUD"
+              },
+              "subtotalAmount": {
+                "amount": "50.00"
+              }
+            },
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "collectionMemberships": [
+                  {
+                    "collectionId": "gid://shopify/Collection/HOODIE",
+                    "isMember": false
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "localization": {
+        "market": {
+          "id": "gid://shopify/Market/1"
+        }
+      },
+      "presentmentCurrencyRate": "1",
+      "shop": {
+        "metafield": {
+          "jsonValue": {
+            "base": "AUD",
+            "AUD": 1
+          }
+        }
+      },
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ],
+        "metafield": {
+          "jsonValue": {
+            "collectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "bundleCollectionIds": [
+              "gid://shopify/Collection/HOODIE"
+            ],
+            "itemCount": 2,
+            "pricingMode": "single",
+            "shopCurrencyCode": "AUD",
+            "bundlePrice": "100.00",
+            "lineProperty": "_free_gift_hoodie",
+            "minSpend": "100.00",
+            "discountTitle": "Free gift",
+            "redemptions": "multiple"
+          }
+        }
+      }
+    },
+    "inputQueryVariables": {
+      "collectionIds": [
+        "gid://shopify/Collection/HOODIE"
+      ],
+      "lineProperty": "_free_gift_hoodie"
+    },
+    "output": {
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "message": "Free gift",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/gift-cheap",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "30.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              },
+              {
+                "message": "Free gift",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/gift-dear",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "50.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              },
+              {
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/paid",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "0.01",
+                    "appliesToEachItem": false
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "ALL"
+          }
+        }
+      ]
+    }
+  }
+}

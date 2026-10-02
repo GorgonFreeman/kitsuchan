@@ -1,0 +1,53 @@
+query CartInput($collectionIds: [ID!], $lineProperty: String!) {
+  cart {
+    lines {
+      id
+      quantity
+      excludeAttribute: attribute(key: "_hoodie_bundle_exclude") {
+        value
+      }
+      giftAttribute: attribute(key: $lineProperty) {
+        key
+        value
+      }
+      cost {
+        amountPerQuantity {
+          amount
+          currencyCode
+        }
+        subtotalAmount {
+          amount
+        }
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          product {
+            collectionMemberships: inCollections(ids: $collectionIds) {
+              collectionId
+              isMember
+            }
+          }
+        }
+      }
+    }
+  }
+
+  localization {
+    market {
+      id
+    }
+  }
+  presentmentCurrencyRate
+  shop {
+    metafield(namespace: "global", key: "conversion_rates") {
+      jsonValue
+    }
+  }
+  discount {
+    discountClasses
+    metafield(namespace: "$app", key: "function-configuration") {
+      jsonValue
+    }
+  }
+}
