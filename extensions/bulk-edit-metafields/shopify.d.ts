@@ -74,13 +74,13 @@ declare module './src/valueCodec.js' {
 
 //@ts-ignore
 declare module './src/components/ListChipEditor.jsx' {
-  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
+  const shopify: import('@shopify/ui-extensions/admin.product-details.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
 
 //@ts-ignore
 declare module './src/components/ListChipEditor.jsx' {
-  const shopify: import('@shopify/ui-extensions/admin.product-details.action.render').Api;
+  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
 
@@ -92,13 +92,13 @@ declare module './src/components/ListChipEditor.jsx' {
 
 //@ts-ignore
 declare module './src/components/ReferenceEditor.jsx' {
-  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
+  const shopify: import('@shopify/ui-extensions/admin.product-details.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
 
 //@ts-ignore
 declare module './src/components/ReferenceEditor.jsx' {
-  const shopify: import('@shopify/ui-extensions/admin.product-details.action.render').Api;
+  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
 
@@ -110,13 +110,13 @@ declare module './src/components/ReferenceEditor.jsx' {
 
 //@ts-ignore
 declare module './src/adminGraphql.js' {
-  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
+  const shopify: import('@shopify/ui-extensions/admin.product-details.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
 
 //@ts-ignore
 declare module './src/adminGraphql.js' {
-  const shopify: import('@shopify/ui-extensions/admin.product-details.action.render').Api;
+  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
 
@@ -128,13 +128,13 @@ declare module './src/adminGraphql.js' {
 
 //@ts-ignore
 declare module './src/metaobjectDisplay.js' {
-  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
+  const shopify: import('@shopify/ui-extensions/admin.product-details.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
 
 //@ts-ignore
 declare module './src/metaobjectDisplay.js' {
-  const shopify: import('@shopify/ui-extensions/admin.product-details.action.render').Api;
+  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
 

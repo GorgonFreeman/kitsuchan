@@ -7,11 +7,11 @@
         "lines": [
           {
             "id": "gid://shopify/CartLine/1",
-            "quantity": 1,
+            "quantity": 2,
             "excludeAttribute": null,
             "cost": {
               "amountPerQuantity": {
-                "amount": "74.99",
+                "amount": "60",
                 "currencyCode": "AUD"
               }
             },
@@ -28,7 +28,7 @@
             "excludeAttribute": null,
             "cost": {
               "amountPerQuantity": {
-                "amount": "49.99",
+                "amount": "50",
                 "currencyCode": "AUD"
               }
             },
@@ -41,45 +41,11 @@
           },
           {
             "id": "gid://shopify/CartLine/3",
-            "quantity": 2,
-            "excludeAttribute": null,
-            "cost": {
-              "amountPerQuantity": {
-                "amount": "64.99",
-                "currencyCode": "AUD"
-              }
-            },
-            "merchandise": {
-              "__typename": "ProductVariant",
-              "product": {
-                "collectionMemberships": []
-              }
-            }
-          },
-          {
-            "id": "gid://shopify/CartLine/4",
             "quantity": 1,
             "excludeAttribute": null,
             "cost": {
               "amountPerQuantity": {
-                "amount": "64.99",
-                "currencyCode": "AUD"
-              }
-            },
-            "merchandise": {
-              "__typename": "ProductVariant",
-              "product": {
-                "collectionMemberships": []
-              }
-            }
-          },
-          {
-            "id": "gid://shopify/CartLine/5",
-            "quantity": 1,
-            "excludeAttribute": null,
-            "cost": {
-              "amountPerQuantity": {
-                "amount": "59.99",
+                "amount": "70",
                 "currencyCode": "AUD"
               }
             },
@@ -121,9 +87,9 @@
             "qualifyCollectionIds": [],
             "eligibleCollectionIds": [],
             "itemCount": 2,
-            "paidCount": 2,
-            "percent": 100,
-            "discountTitle": "B2G1"
+            "paidCount": 1,
+            "percent": 50,
+            "discountTitle": "B1G50"
           }
         }
       }
@@ -139,7 +105,7 @@
           "productDiscountsAdd": {
             "candidates": [
               {
-                "message": "B2G1",
+                "message": "B1G50",
                 "targets": [
                   {
                     "cartLine": {
@@ -150,68 +116,34 @@
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "49.99",
+                    "amount": "25.00",
                     "appliesToEachItem": false
                   }
                 }
               },
               {
-                "message": "B2G1",
+                "message": "B1G50",
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/5",
-                      "quantity": 1
-                    }
-                  }
-                ],
-                "value": {
-                  "fixedAmount": {
-                    "amount": "59.99",
-                    "appliesToEachItem": false
-                  }
-                }
-              },
-              {
-                "message": "B2G1",
-                "targets": [
-                  {
-                    "cartLine": {
-                      "id": "gid://shopify/CartLine/3",
+                      "id": "gid://shopify/CartLine/1",
                       "quantity": 2
                     }
                   }
                 ],
                 "value": {
                   "fixedAmount": {
-                    "amount": "0.00",
+                    "amount": "30.00",
                     "appliesToEachItem": false
                   }
                 }
               },
               {
-                "message": "B2G1",
+                "message": "B1G50",
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/4",
-                      "quantity": 1
-                    }
-                  }
-                ],
-                "value": {
-                  "fixedAmount": {
-                    "amount": "0.00",
-                    "appliesToEachItem": false
-                  }
-                }
-              },
-              {
-                "message": "B2G1",
-                "targets": [
-                  {
-                    "cartLine": {
-                      "id": "gid://shopify/CartLine/1",
+                      "id": "gid://shopify/CartLine/3",
                       "quantity": 1
                     }
                   }
