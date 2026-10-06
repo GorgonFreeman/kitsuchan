@@ -233,6 +233,70 @@
                     "appliesToEachItem": false
                   }
                 }
+              },
+              {
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/3",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "0.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              },
+              {
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/4",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "0.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              },
+              {
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/5",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "0.00",
+                    "appliesToEachItem": false
+                  }
+                }
+              },
+              {
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/6",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "0.00",
+                    "appliesToEachItem": false
+                  }
+                }
               }
             ],
             "selectionStrategy": "ALL"

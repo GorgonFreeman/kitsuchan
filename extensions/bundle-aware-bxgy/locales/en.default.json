@@ -1,4 +1,4 @@
 {
   "name": "Bundle-aware BxGy",
-  "description": "Buy X from an optional collection, get Y% off cheapest from another optional collection; excludes collection-pair bundle units first"
+  "description": "Buy X from an optional collection, get Y% off cheapest from another optional collection; excludes collection-pair bundle units first; vanity discounts on paid group lines so the function competes as one group vs codes"
 }

@@ -131,6 +131,22 @@
                     "appliesToEachItem": false
                   }
                 }
+              },
+              {
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/1",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": "0.00",
+                    "appliesToEachItem": false
+                  }
+                }
               }
             ],
             "selectionStrategy": "ALL"

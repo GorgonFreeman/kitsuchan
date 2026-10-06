@@ -572,13 +572,19 @@ function proportionalDiscountCents(unitPricesCents, bundlePriceCents) {
 // BxGy percent (B2G1 / B1G50 / B1HG50Sw)
 // ---------------------------------------------------------------------------
 
+const VANITY_CENTS = 0;
+
 /**
  * Midway grouping: count how many full groups fit, then assign discount slots
  * from cheapest eligible upwards. Paid qualifiers are the next-cheapest remaining
  * qualify units — the most expensive units can sit outside any group.
  *
+ * All paid qualifier units in a group get a $0.00 vanity so this function claims
+ * them and competes as one group against discount codes. Leftover units outside
+ * any group are untouched.
+ *
  * Example B2G1 with 7 units: floor(7/3)=2 free → 2 cheapest discounted;
- * next 4 are paid; 1 dearest leftover is not in a group.
+ * next 4 are paid qualifiers (vanity); 1 dearest leftover is untouched.
  *
  * @param {Unit[]} units
  * @param {(u: Unit) => boolean} isQualify
@@ -614,9 +620,15 @@ function applyBxGyPercent(units, isQualify, isEligible, paidCount, percent, mess
 
   if (groupCount <= 0) return [];
 
+  const freeUnits = eligibleSorted.slice(0, groupCount);
+  const freeIds = new Set(freeUnits.map((u) => u.unitId));
+  const paidUnits = qualifySorted
+    .filter((u) => !freeIds.has(u.unitId))
+    .slice(0, groupCount * paidCount);
+
   /** @type {UnitDiscount[]} */
   const discounts = [];
-  for (const unit of eligibleSorted.slice(0, groupCount)) {
+  for (const unit of freeUnits) {
     const discountCents = Math.floor((unit.unitPriceCents * percent) / 100);
     if (discountCents > 0) {
       discounts.push({
@@ -626,6 +638,26 @@ function applyBxGyPercent(units, isQualify, isEligible, paidCount, percent, mess
         message,
       });
     }
+  }
+
+  // Vanity on every paid qualifier in a group (not leftovers outside groups).
+  const discountedLineIds = new Set(
+    discounts.filter((d) => d.message).map((d) => d.lineId),
+  );
+  /** @type {Set<string>} */
+  const vanityLineIds = new Set();
+  for (const unit of paidUnits) {
+    if (discountedLineIds.has(unit.lineId)) continue;
+    vanityLineIds.add(unit.lineId);
+  }
+
+  for (const lineId of vanityLineIds) {
+    discounts.push({
+      unitId: `vanity:${ lineId }`,
+      lineId,
+      discountCents: VANITY_CENTS,
+      message: '',
+    });
   }
 
   return discounts;
@@ -705,7 +737,9 @@ function aggregateProductCandidates(unitDiscounts) {
   const buckets = new Map();
 
   for (const d of unitDiscounts) {
-    if (d.discountCents <= 0) continue;
+    // Allow $0.00 vanity (empty message); skip other non-positive amounts.
+    if (d.discountCents < 0) continue;
+    if (d.discountCents === 0 && d.message) continue;
     const key = `${ d.lineId }::${ d.message }`;
     const bucket = buckets.get(key) ?? {
       lineId: d.lineId,
