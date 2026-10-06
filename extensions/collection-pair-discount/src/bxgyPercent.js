@@ -99,7 +99,7 @@ export function applyBxGyPercent(units, isQualify, isEligible, paidCount, percen
       unitId: `vanity:${ lineId }`,
       lineId,
       discountCents: VANITY_CENTS,
-      message: '',
+      message,
     });
   }
 
@@ -121,9 +121,9 @@ export function aggregateProductCandidates(unitDiscounts) {
   const buckets = new Map();
 
   for (const d of unitDiscounts) {
-    // Allow $0.00 vanity (empty message); skip other non-positive amounts.
+    // Allow $0.00 vanity; skip other non-positive amounts.
     if (d.discountCents < 0) continue;
-    if (d.discountCents === 0 && d.message) continue;
+    if (d.discountCents === 0 && !d.message) continue;
     const key = `${ d.lineId }::${ d.message }`;
     const bucket = buckets.get(key) ?? {
       lineId: d.lineId,
