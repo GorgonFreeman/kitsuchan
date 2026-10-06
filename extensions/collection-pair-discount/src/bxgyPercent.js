@@ -83,21 +83,12 @@ export function applyBxGyPercent(units, isQualify, isEligible, paidCount, percen
     }
   }
 
-  // Vanity on every paid qualifier in a group (not leftovers outside groups).
-  const discountedLineIds = new Set(
-    discounts.filter((d) => d.message).map((d) => d.lineId),
-  );
-  /** @type {Set<string>} */
-  const vanityLineIds = new Set();
+  // Vanity on every paid qualifier unit in a group (not leftovers). Emit one per
+  // unit so same-line free+paid (or multiple paid) merges to the right quantity.
   for (const unit of paidUnits) {
-    if (discountedLineIds.has(unit.lineId)) continue;
-    vanityLineIds.add(unit.lineId);
-  }
-
-  for (const lineId of vanityLineIds) {
     discounts.push({
-      unitId: `vanity:${ lineId }`,
-      lineId,
+      unitId: `vanity:${ unit.unitId }`,
+      lineId: unit.lineId,
       discountCents: VANITY_CENTS,
       message,
     });
