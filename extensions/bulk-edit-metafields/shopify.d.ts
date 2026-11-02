@@ -7,13 +7,7 @@ declare module './src/ActionExtension.jsx' {
 }
 
 //@ts-ignore
-declare module './src/ActionExtension.jsx' {
-  const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
-  const globalThis: { shopify: typeof shopify };
-}
-
-//@ts-ignore
-declare module './src/ActionExtension.jsx' {
+declare module './src/components/ValueEditor.jsx' {
   const shopify: import('@shopify/ui-extensions/admin.product-index.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
@@ -31,7 +25,7 @@ declare module './src/components/ValueEditor.jsx' {
 }
 
 //@ts-ignore
-declare module './src/components/ValueEditor.jsx' {
+declare module './src/operations.js' {
   const shopify: import('@shopify/ui-extensions/admin.product-index.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
@@ -49,7 +43,7 @@ declare module './src/operations.js' {
 }
 
 //@ts-ignore
-declare module './src/operations.js' {
+declare module './src/valueCodec.js' {
   const shopify: import('@shopify/ui-extensions/admin.product-index.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
@@ -67,7 +61,7 @@ declare module './src/valueCodec.js' {
 }
 
 //@ts-ignore
-declare module './src/valueCodec.js' {
+declare module './src/components/ListChipEditor.jsx' {
   const shopify: import('@shopify/ui-extensions/admin.product-index.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
@@ -85,7 +79,7 @@ declare module './src/components/ListChipEditor.jsx' {
 }
 
 //@ts-ignore
-declare module './src/components/ListChipEditor.jsx' {
+declare module './src/components/ReferenceEditor.jsx' {
   const shopify: import('@shopify/ui-extensions/admin.product-index.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
@@ -103,7 +97,7 @@ declare module './src/components/ReferenceEditor.jsx' {
 }
 
 //@ts-ignore
-declare module './src/components/ReferenceEditor.jsx' {
+declare module './src/adminGraphql.js' {
   const shopify: import('@shopify/ui-extensions/admin.product-index.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
@@ -121,7 +115,7 @@ declare module './src/adminGraphql.js' {
 }
 
 //@ts-ignore
-declare module './src/adminGraphql.js' {
+declare module './src/metaobjectDisplay.js' {
   const shopify: import('@shopify/ui-extensions/admin.product-index.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
@@ -135,11 +129,5 @@ declare module './src/metaobjectDisplay.js' {
 //@ts-ignore
 declare module './src/metaobjectDisplay.js' {
   const shopify: import('@shopify/ui-extensions/admin.product-index.selection-action.render').Api;
-  const globalThis: { shopify: typeof shopify };
-}
-
-//@ts-ignore
-declare module './src/metaobjectDisplay.js' {
-  const shopify: import('@shopify/ui-extensions/admin.product-index.action.render').Api;
   const globalThis: { shopify: typeof shopify };
 }
